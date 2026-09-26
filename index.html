@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width,
+                   initial-scale=1.0,
+                   user-scalable=no">
+
+    <title>AR Indoor Navigation</title>
+
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+
+    <!-- AR.js - Marker Tracking -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+    <style>
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #instruction {
+            position: fixed;
+
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+
+            z-index: 999;
+
+            background: rgba(0,0,0,0.75);
+            color: white;
+
+            padding: 12px 20px;
+
+            border-radius: 10px;
+
+            text-align: center;
+
+            font-size: 18px;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div id="instruction">
+    Point your camera at the AR marker
+</div>
+
+
+<a-scene
+
+    embedded
+
+    vr-mode-ui="enabled: false"
+
+    renderer="antialias: true;
+              alpha: true;"
+
+    arjs="
+        sourceType: webcam;
+        debugUIEnabled: false;
+        detectionMode: mono;
+    "
+>
+
+
+    <!-- ===================================================== -->
+    <!-- AR MARKER -->
+    <!-- ===================================================== -->
+
+    <a-marker
+
+        id="navigationMarker"
+
+        preset="hiro"
+
+        size="0.20"
+
+        emitevents="true"
+
+        smooth="true"
+
+        smooth-count="10"
+
+        smooth-tolerance="0.01"
+
+        smooth-threshold="5"
+    >
+
+
+        <!-- ================================================= -->
+        <!-- START MESSAGE -->
+        <!-- ================================================= -->
+
+        <a-text
+
+            value="FOLLOW THE ARROWS"
+
+            position="0 0.6 -0.3"
+
+            rotation="-90 0 0"
+
+            align="center"
+
+            width="3"
+
+            color="#FFFF00"
+
+        ></a-text>
+
+
+
+        <!-- ================================================= -->
+        <!-- NAVIGATION ROUTE -->
+        <!-- ================================================= -->
+
+
+        <!-- Arrow 1 -->
+
+        <a-entity position="0 0.05 -0.8">
+
+            <a-box
+                position="0 0 0"
+                width="0.12"
+                height="0.03"
+                depth="0.45"
+                color="#00FFFF">
+            </a-box>
+
+            <a-cone
+                position="0 0 -0.32"
+                rotation="90 0 0"
+                radius-bottom="0.20"
+                radius-top="0"
+                height="0.35"
+                color="#00FFFF">
+            </a-cone>
+
+        </a-entity>
+
+
+
+        <!-- Arrow 2 -->
+
+        <a-entity position="0 0.05 -1.6">
+
+            <a-box
+                width="0.12"
+                height="0.03"
+                depth="0.45"
+                color="#00FFFF">
+            </a-box>
+
+            <a-cone
+                position="0 0 -0.32"
+                rotation="90 0 0"
+                radius-bottom="0.20"
+                radius-top="0"
+                height="0.35"
+                color="#00FFFF">
+            </a-cone>
+
+        </a-entity>
+
+
+
+        <!-- Arrow 3 -->
+
+        <a-entity
+
+            position="0.3 0.05 -2.4"
+
+            rotation="0 -25 0">
+
+            <a-box
+                width="0.12"
+                height="0.03"
+                depth="0.45"
+                color="#00FFFF">
+            </a-box>
+
+            <a-cone
+                position="0 0 -0.32"
+                rotation="90 0 0"
+                radius-bottom="0.20"
+                radius-top="0"
+                height="0.35"
+                color="#00FFFF">
+            </a-cone>
+
+        </a-entity>
+
+
+
+        <!-- Arrow 4 -->
+
+        <a-entity
+
+            position="0.8 0.05 -3.0"
+
+            rotation="0 -45 0">
+
+            <a-box
+                width="0.12"
+                height="0.03"
+                depth="0.45"
+                color="#00FFFF">
+            </a-box>
+
+            <a-cone
+                position="0 0 -0.32"
+                rotation="90 0 0"
+                radius-bottom="0.20"
+                radius-top="0"
+                height="0.35"
+                color="#00FFFF">
+            </a-cone>
+
+        </a-entity>
+
+
+
+        <!-- ================================================= -->
+        <!-- DESTINATION -->
+        <!-- ================================================= -->
+
+        <a-entity position="1.4 0 -3.6">
+
+
+            <!-- Destination circle -->
+
+            <a-cylinder
+
+                position="0 0.05 0"
+
+                radius="0.35"
+
+                height="0.05"
+
+                color="#FF0000"
+
+                animation="
+                    property: scale;
+                    from: 1 1 1;
+                    to: 1.4 1.4 1.4;
+                    dur: 700;
+                    dir: alternate;
+                    loop: true;
+                "
+
+            ></a-cylinder>
+
+
+
+            <!-- Floating marker -->
+
+            <a-cone
+
+                position="0 0.7 0"
+
+                radius-bottom="0.25"
+
+                radius-top="0"
+
+                height="0.5"
+
+                color="#FF0000"
+
+                animation="
+                    property: position;
+                    from: 0 0.6 0;
+                    to: 0 0.9 0;
+                    dur: 800;
+                    dir: alternate;
+                    loop: true;
+                "
+
+            ></a-cone>
+
+
+
+            <!-- Destination text -->
+
+            <a-text
+
+                value="OBJECT HERE!"
+
+                position="0 1.2 0"
+
+                rotation="0 0 0"
+
+                align="center"
+
+                width="3"
+
+                color="#FF0000"
+
+                side="double"
+
+            ></a-text>
+
+
+        </a-entity>
+
+
+    </a-marker>
+
+
+
+    <!-- ===================================================== -->
+    <!-- CAMERA -->
+    <!-- ===================================================== -->
+
+    <a-entity camera></a-entity>
+
+
+</a-scene>
+
+
+
+<script>
+
+    const marker =
+        document.querySelector("#navigationMarker");
+
+    const instruction =
+        document.querySelector("#instruction");
+
+
+    marker.addEventListener(
+        "markerFound",
+        function () {
+
+            instruction.innerHTML =
+                "Marker detected — follow the AR arrows";
+
+        }
+    );
+
+
+    marker.addEventListener(
+        "markerLost",
+        function () {
+
+            instruction.innerHTML =
+                "Look back toward the AR marker";
+
+        }
+    );
+
+</script>
+
+
+</body>
+</html>
