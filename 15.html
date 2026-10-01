@@ -1,0 +1,3770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+>
+<title>MHA XR Safety Challenge - Quest + Android 3D</title>
+
+<script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
+
+<style>
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  background: #0b1220;
+  color: white;
+}
+
+#modeScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0b1220, #18243d);
+}
+
+.card {
+  width: min(700px, calc(100% - 40px));
+  padding: 36px;
+  border-radius: 22px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.16);
+  text-align: center;
+}
+
+button {
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 24px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #22d3ee;
+  color: #06202a;
+}
+
+/* =========================================================
+   DESKTOP VERSION
+   ========================================================= */
+
+#pcGame {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, #17233b, #0b1220);
+  overflow: hidden;
+}
+
+#pcHud {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(900px, 92vw);
+  z-index: 10;
+}
+
+#pcQuestion {
+  background: #111827;
+  padding: 10px 16px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+#pcStats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: 14px;
+}
+
+#pcArena {
+  position: absolute;
+  inset: 96px 0 0 0;
+}
+
+.pcTarget {
+  position: absolute;
+  width: 56px;
+  height: 41px;
+  border-radius: 18px;
+  background: #172033;
+  border: 3px solid #64748b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: crosshair;
+  user-select: none;
+  box-shadow: 0 8px 20px rgba(0,0,0,.30);
+  transition: background .12s, transform .12s;
+  font-size: 10px;
+  padding: 4px;
+}
+
+.pcTarget:hover {
+  background: #23405d;
+  transform: scale(1.03);
+}
+
+.pcIcon {
+  font-size: 16px;
+  margin-bottom: 1px;
+}
+
+#pcFeedback {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(620px, 82vw);
+  padding: 10px 15px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  display: none;
+  z-index: 20;
+}
+
+#pcGameOver {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.72);
+  z-index: 30;
+}
+
+.explosion {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    #fff59d 0%,
+    #ff9800 35%,
+    #e53935 65%,
+    rgba(229,57,53,0) 100%
+  );
+  animation: boom .45s ease-out forwards;
+}
+
+@keyframes boom {
+  0% {
+    width: 20px;
+    height: 20px;
+    opacity: 1;
+    transform: translate(-50%,-50%) scale(.2);
+  }
+
+  100% {
+    width: 220px;
+    height: 220px;
+    opacity: 0;
+    transform: translate(-50%,-50%) scale(1);
+  }
+}
+
+#pcControls {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  z-index: 25;
+  display: flex;
+  gap: 10px;
+}
+
+#pcControls button {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 15px;
+}
+
+.xr-control {
+  background: #DC2626;
+  color: white;
+}
+
+/* =========================================================
+   ANDROID 3D AIMING CONTROLS
+   ========================================================= */
+
+#mobile3DUI {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  pointer-events: none;
+  touch-action: none;
+}
+
+#mobile3DHelp {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, 88vw);
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(15,23,42,.84);
+  color: white;
+  text-align: center;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+#mobile3DStatus {
+  color: #67e8f9;
+  font-weight: 700;
+}
+
+#mobile3DShoot {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  min-width: 160px;
+  padding: 16px 30px;
+  border-radius: 999px;
+  background: #22d3ee;
+  color: #06202a;
+  font-size: 21px;
+  font-weight: 900;
+  pointer-events: auto;
+  box-shadow:
+    0 8px 24px rgba(0,0,0,.42),
+    0 0 18px rgba(34,211,238,.55);
+}
+
+#mobile3DShoot:active {
+  transform: translateX(-50%) scale(.95);
+}
+
+#mobile3DRestart {
+  display: none;
+  position: absolute;
+  right: 16px;
+  bottom: 24px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  background: #facc15;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 800;
+  pointer-events: auto;
+}
+
+#mobile3DBack {
+  position: absolute;
+  left: 16px;
+  bottom: 24px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  background: #475569;
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+  pointer-events: auto;
+}
+
+body.mobile-3d-mode canvas {
+  touch-action: none;
+}
+
+.a-enter-vr,
+.a-enter-ar {
+  display: none !important;
+}
+</style>
+
+<script>
+/* =========================================================
+   EASY SETTINGS
+   ========================================================= */
+
+const GAME_DURATION = 60;
+
+const POINTS_CORRECT = 10;
+const POINTS_WRONG = -5;
+const POINTS_MISSED = -5;
+
+const XR_TARGET_WIDTH = 0.40;
+const XR_TARGET_HEIGHT = 0.18;
+
+const PC_TARGET_WIDTH = 90;
+const PC_TARGET_HEIGHT = 41;
+
+const XR_HITBOX_WIDTH = 0.54;
+const XR_HITBOX_HEIGHT = 0.30;
+const XR_HITBOX_DEPTH = 0.18;
+
+const MODEL_FILES = {
+  extinguisher: "assets/fire-extinguisher.glb",
+  helmet: "assets/helmet.glb",
+  cone: "assets/safety-cone.glb"
+};
+
+const MIN_FALL_SECONDS = 4.5;
+const MAX_FALL_SECONDS = 8.0;
+
+const MAX_DROP_DELAY_SECONDS = 1.8;
+
+const COLOURS = {
+  normal: "#172033",
+  hover: "#23405D",
+  correct: "#16A34A",
+  wrong: "#DC2626",
+  laser: "#22D3EE"
+};
+
+const SOUND = {
+  shoot: 250,
+  correct: 850,
+  wrong: 150,
+  explode: 95
+};
+
+/* =========================================================
+   QUESTIONS
+   ========================================================= */
+
+const QUESTIONS = [
+  {
+    question:
+      "A fire is too large to put out safely. What should you do?",
+
+    answers: [
+      {
+        label: "Alert others,\ncall 995 and\nactivate the alarm",
+        icon: "🚨",
+        correct: true
+      },
+      {
+        label: "Use the lift\nto leave quickly",
+        icon: "🛗",
+        correct: false
+      },
+      {
+        label: "Go back for\nyour belongings",
+        icon: "🎒",
+        correct: false
+      }
+    ],
+
+    explanation:
+      "If the fire cannot be fought safely, alert others, call 995 and activate the nearest fire alarm."
+  },
+
+  {
+    question:
+      "During a fire evacuation, which route should you use?",
+
+    answers: [
+      {
+        label: "Exit stairs",
+        icon: "🪜",
+        correct: true
+      },
+      {
+        label: "Passenger lift",
+        icon: "🛗",
+        correct: false
+      },
+      {
+        label: "Stay at your\ndesk",
+        icon: "🪑",
+        correct: false
+      }
+    ],
+
+    explanation:
+      "Evacuate in an orderly manner via the stairs. Do not use the lift."
+  },
+
+  {
+    question:
+      "Which number should you call to inform SCDF of a fire?",
+
+    answers: [
+      {
+        label: "995",
+        icon: "☎️",
+        correct: true
+      },
+      {
+        label: "999",
+        icon: "☎️",
+        correct: false
+      },
+      {
+        label: "1777",
+        icon: "☎️",
+        correct: false
+      }
+    ],
+
+    explanation:
+      "Dial 995 to inform the Singapore Civil Defence Force of a fire."
+  },
+
+  {
+    question:
+      "Which should you NEVER use on burning electrical equipment?",
+
+    answers: [
+      {
+        label: "Water",
+        icon: "💧",
+        correct: true
+      },
+      {
+        label: "Suitable dry\npowder extinguisher",
+        icon: "🧯",
+        correct: false
+      },
+      {
+        label: "Suitable CO2\nextinguisher",
+        icon: "🧯",
+        correct: false
+      }
+    ],
+
+    explanation:
+      "Water should never be used on burning electrical equipment."
+  },
+
+  {
+    question:
+      "Spot the fire-safety problem.",
+
+    answers: [
+      {
+        label: "Boxes blocking\nthe exit",
+        icon: "📦",
+        correct: true
+      },
+      {
+        label: "Chair away\nfrom the exit",
+        icon: "🪑",
+        correct: false
+      },
+      {
+        label: "Plant away\nfrom the exit",
+        icon: "🪴",
+        correct: false
+      }
+    ],
+
+    explanation:
+      "Exit routes and access to exits should remain unobstructed."
+  },
+
+  {
+    question:
+      "Choose the 3D model that represents fire-fighting equipment.",
+
+    useModels: true,
+
+    answers: [
+      {
+        label: "Fire extinguisher",
+        model: "extinguisher",
+        icon: "🧯",
+        correct: true
+      },
+      {
+        label: "Safety helmet",
+        model: "helmet",
+        icon: "⛑️",
+        correct: false
+      },
+      {
+        label: "Safety cone",
+        model: "cone",
+        icon: "🔶",
+        correct: false
+      }
+    ],
+
+    explanation:
+      "This question uses external GLB 3D model files."
+  }
+];
+
+/* =========================================================
+   SOUND
+   ========================================================= */
+
+const audio = {
+  ctx: null,
+
+  init() {
+    if (!this.ctx) {
+      this.ctx =
+        new (
+          window.AudioContext ||
+          window.webkitAudioContext
+        )();
+    }
+
+    if (this.ctx.state === "suspended") {
+      this.ctx.resume();
+    }
+  },
+
+  tone(
+    frequency,
+    duration = 0.07,
+    type = "sine",
+    volume = 0.04
+  ) {
+    this.init();
+
+    const oscillator =
+      this.ctx.createOscillator();
+
+    const gain =
+      this.ctx.createGain();
+
+    oscillator.type = type;
+    oscillator.frequency.value =
+      frequency;
+
+    gain.gain.setValueAtTime(
+      volume,
+      this.ctx.currentTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      this.ctx.currentTime + duration
+    );
+
+    oscillator.connect(gain);
+    gain.connect(
+      this.ctx.destination
+    );
+
+    oscillator.start();
+
+    oscillator.stop(
+      this.ctx.currentTime + duration
+    );
+  },
+
+  shoot() {
+    this.tone(
+      SOUND.shoot,
+      0.045,
+      "square",
+      0.025
+    );
+  },
+
+  correct() {
+    this.tone(
+      SOUND.correct,
+      0.07,
+      "sine",
+      0.05
+    );
+
+    setTimeout(
+      () => {
+        this.tone(
+          SOUND.correct + 250,
+          0.09,
+          "sine",
+          0.045
+        );
+      },
+      60
+    );
+  },
+
+  wrong() {
+    this.tone(
+      SOUND.wrong,
+      0.12,
+      "sawtooth",
+      0.035
+    );
+  },
+
+  explode() {
+    this.tone(
+      SOUND.explode,
+      0.20,
+      "sawtooth",
+      0.05
+    );
+  }
+};
+
+function randomBetween(min, max) {
+  return (
+    Math.random() *
+    (max - min) +
+    min
+  );
+}
+
+function shuffledQuestions() {
+  const copy =
+    [...QUESTIONS];
+
+  for (
+    let i = copy.length - 1;
+    i > 0;
+    i--
+  ) {
+    const j =
+      Math.floor(
+        Math.random() *
+        (i + 1)
+      );
+
+    [
+      copy[i],
+      copy[j]
+    ] = [
+      copy[j],
+      copy[i]
+    ];
+  }
+
+  return copy;
+}
+
+/* =========================================================
+   XR HIGHLIGHT
+   ========================================================= */
+
+let currentXRHighlight = null;
+
+function clearCurrentXRHighlight() {
+  if (
+    currentXRHighlight &&
+    currentXRHighlight.parentNode
+  ) {
+    currentXRHighlight.parentNode.removeChild(
+      currentXRHighlight
+    );
+  }
+
+  currentXRHighlight = null;
+}
+
+function showXRHighlight(
+  holder,
+  width,
+  height
+) {
+  clearCurrentXRHighlight();
+
+  const outline =
+    document.createElement(
+      "a-box"
+    );
+
+  outline.setAttribute(
+    "width",
+    width
+  );
+
+  outline.setAttribute(
+    "height",
+    height
+  );
+
+  outline.setAttribute(
+    "depth",
+    "0.012"
+  );
+
+  outline.setAttribute(
+    "position",
+    "0 0 0.075"
+  );
+
+  outline.setAttribute(
+    "material",
+    "color: #22D3EE; opacity: 0.95; transparent: true; wireframe: true"
+  );
+
+  holder.appendChild(
+    outline
+  );
+
+  currentXRHighlight =
+    outline;
+}
+
+function attachAimAssist(
+  holder,
+  visibleCard,
+  answerIndex
+) {
+  const hitbox =
+    document.createElement(
+      "a-box"
+    );
+
+  hitbox.classList.add(
+    "shootable"
+  );
+
+  hitbox.dataset.index =
+    answerIndex;
+
+  hitbox.setAttribute(
+    "width",
+    XR_HITBOX_WIDTH
+  );
+
+  hitbox.setAttribute(
+    "height",
+    XR_HITBOX_HEIGHT
+  );
+
+  hitbox.setAttribute(
+    "depth",
+    XR_HITBOX_DEPTH
+  );
+
+  hitbox.setAttribute(
+    "material",
+    "opacity: 0.001; transparent: true; depthWrite: false"
+  );
+
+  holder.appendChild(
+    hitbox
+  );
+
+  hitbox.addEventListener(
+    "raycaster-intersected",
+    () => {
+      showXRHighlight(
+        holder,
+        XR_TARGET_WIDTH + 0.05,
+        XR_TARGET_HEIGHT + 0.05
+      );
+
+      if (visibleCard) {
+        visibleCard.setAttribute(
+          "scale",
+          "1.05 1.05 1.05"
+        );
+      }
+    }
+  );
+
+  hitbox.addEventListener(
+    "raycaster-intersected-cleared",
+    () => {
+      if (
+        currentXRHighlight &&
+        currentXRHighlight.parentNode ===
+          holder
+      ) {
+        clearCurrentXRHighlight();
+      }
+
+      if (visibleCard) {
+        visibleCard.setAttribute(
+          "scale",
+          "1 1 1"
+        );
+      }
+    }
+  );
+
+  return hitbox;
+}
+
+/* =========================================================
+   SIMPLE XR ICONS
+   ========================================================= */
+
+function addXRIcon(
+  parent,
+  type
+) {
+  const icon =
+    document.createElement(
+      "a-entity"
+    );
+
+  icon.setAttribute(
+    "position",
+    "0 0.035 0.04"
+  );
+
+  parent.appendChild(
+    icon
+  );
+
+  const add = (
+    tag,
+    attrs
+  ) => {
+    const element =
+      document.createElement(
+        tag
+      );
+
+    Object.entries(
+      attrs
+    ).forEach(
+      ([key, value]) => {
+        element.setAttribute(
+          key,
+          value
+        );
+      }
+    );
+
+    icon.appendChild(
+      element
+    );
+
+    return element;
+  };
+
+  if (type === "🚨") {
+    add(
+      "a-box",
+      {
+        width: "0.07",
+        height: "0.07",
+        depth: "0.035",
+        color: "#DC2626"
+      }
+    );
+
+    add(
+      "a-sphere",
+      {
+        radius: "0.022",
+        position: "0 0.055 0",
+        color: "#FACC15"
+      }
+    );
+  }
+
+  else if (type === "🛗") {
+    add(
+      "a-box",
+      {
+        width: "0.08",
+        height: "0.09",
+        depth: "0.025",
+        color: "#64748B"
+      }
+    );
+
+    add(
+      "a-text",
+      {
+        value: "UP/DN",
+        align: "center",
+        position: "0 0 0.02",
+        width: "0.22",
+        color: "#FFFFFF"
+      }
+    );
+  }
+
+  else if (type === "🎒") {
+    add(
+      "a-box",
+      {
+        width: "0.075",
+        height: "0.065",
+        depth: "0.04",
+        color: "#B45309"
+      }
+    );
+
+    add(
+      "a-torus",
+      {
+        radius: "0.024",
+        "radius-tubular": "0.006",
+        rotation: "90 0 0",
+        position: "0 0.048 0",
+        color: "#D97706"
+      }
+    );
+  }
+
+  else if (type === "🪜") {
+    add(
+      "a-box",
+      {
+        width: "0.075",
+        height: "0.018",
+        depth: "0.035",
+        position: "-0.02 -0.02 0",
+        color: "#E5E7EB"
+      }
+    );
+
+    add(
+      "a-box",
+      {
+        width: "0.055",
+        height: "0.018",
+        depth: "0.035",
+        position: "0.005 0.005 0",
+        color: "#E5E7EB"
+      }
+    );
+
+    add(
+      "a-box",
+      {
+        width: "0.035",
+        height: "0.018",
+        depth: "0.035",
+        position: "0.025 0.03 0",
+        color: "#E5E7EB"
+      }
+    );
+  }
+
+  else if (type === "🪑") {
+    add(
+      "a-box",
+      {
+        width: "0.065",
+        height: "0.018",
+        depth: "0.05",
+        color: "#475569"
+      }
+    );
+
+    add(
+      "a-box",
+      {
+        width: "0.065",
+        height: "0.07",
+        depth: "0.015",
+        position: "0 0.035 -0.022",
+        color: "#64748B"
+      }
+    );
+  }
+
+  else if (type === "☎️") {
+    add(
+      "a-box",
+      {
+        width: "0.085",
+        height: "0.055",
+        depth: "0.025",
+        color: "#334155"
+      }
+    );
+
+    add(
+      "a-torus",
+      {
+        radius: "0.027",
+        "radius-tubular": "0.008",
+        rotation: "90 0 0",
+        position: "0 0.036 0",
+        color: "#CBD5E1"
+      }
+    );
+  }
+
+  else if (type === "💧") {
+    add(
+      "a-sphere",
+      {
+        radius: "0.035",
+        scale: "0.75 1.1 0.75",
+        color: "#2563EB"
+      }
+    );
+  }
+
+  else if (type === "🧯") {
+    add(
+      "a-cylinder",
+      {
+        radius: "0.026",
+        height: "0.10",
+        color: "#DC2626"
+      }
+    );
+
+    add(
+      "a-box",
+      {
+        width: "0.05",
+        height: "0.012",
+        depth: "0.025",
+        position: "0 0.06 0",
+        color: "#111827"
+      }
+    );
+  }
+
+  else if (type === "📦") {
+    add(
+      "a-box",
+      {
+        width: "0.07",
+        height: "0.07",
+        depth: "0.07",
+        color: "#A16207"
+      }
+    );
+  }
+
+  else if (type === "🪴") {
+    add(
+      "a-cylinder",
+      {
+        radius: "0.025",
+        height: "0.04",
+        position: "0 -0.025 0",
+        color: "#92400E"
+      }
+    );
+
+    add(
+      "a-sphere",
+      {
+        radius: "0.045",
+        position: "0 0.025 0",
+        color: "#16A34A"
+      }
+    );
+  }
+
+  else {
+    add(
+      "a-sphere",
+      {
+        radius: "0.035",
+        color: "#FACC15"
+      }
+    );
+  }
+}
+
+/* =========================================================
+   GLB MODEL ANSWERS
+   ========================================================= */
+
+function createXRModelAnswer(
+  answer
+) {
+  const holder =
+    document.createElement(
+      "a-entity"
+    );
+
+  holder.classList.add(
+    "xr-answer-holder"
+  );
+
+  const hitbox =
+    document.createElement(
+      "a-box"
+    );
+
+  hitbox.classList.add(
+    "shootable"
+  );
+
+  hitbox.setAttribute(
+    "width",
+    XR_HITBOX_WIDTH
+  );
+
+  hitbox.setAttribute(
+    "height",
+    XR_HITBOX_HEIGHT
+  );
+
+  hitbox.setAttribute(
+    "depth",
+    XR_HITBOX_DEPTH
+  );
+
+  hitbox.setAttribute(
+    "material",
+    "opacity: 0.001; transparent: true"
+  );
+
+  holder.appendChild(
+    hitbox
+  );
+
+  const model =
+    document.createElement(
+      "a-entity"
+    );
+
+  model.setAttribute(
+    "gltf-model",
+    MODEL_FILES[answer.model]
+  );
+
+  model.setAttribute(
+    "scale",
+    "0.115 0.115 0.115"
+  );
+
+  model.setAttribute(
+    "position",
+    "0 0 0.02"
+  );
+
+  model.setAttribute(
+    "log-gltf-materials",
+    ""
+  );
+
+  holder.appendChild(
+    model
+  );
+
+  hitbox.addEventListener(
+    "raycaster-intersected",
+    () => {
+      showXRHighlight(
+        holder,
+        XR_TARGET_WIDTH + 0.08,
+        XR_TARGET_HEIGHT + 0.12
+      );
+
+      model.setAttribute(
+        "scale",
+        "0.125 0.125 0.125"
+      );
+    }
+  );
+
+  hitbox.addEventListener(
+    "raycaster-intersected-cleared",
+    () => {
+      if (
+        currentXRHighlight &&
+        currentXRHighlight.parentNode ===
+          holder
+      ) {
+        clearCurrentXRHighlight();
+      }
+
+      model.setAttribute(
+        "scale",
+        "0.115 0.115 0.115"
+      );
+    }
+  );
+
+  const label =
+    document.createElement(
+      "a-text"
+    );
+
+  label.setAttribute(
+    "value",
+    answer.label
+  );
+
+  label.setAttribute(
+    "align",
+    "center"
+  );
+
+  label.setAttribute(
+    "position",
+    "0 -0.15 0.08"
+  );
+
+  label.setAttribute(
+    "width",
+    "0.48"
+  );
+
+  label.setAttribute(
+    "wrap-count",
+    "18"
+  );
+
+  holder.appendChild(
+    label
+  );
+
+  return {
+    holder,
+    hitbox
+  };
+}
+
+/* =========================================================
+   MODE DETECTION
+   ========================================================= */
+
+async function detectMode() {
+  const status =
+    document.querySelector(
+      "#modeStatus"
+    );
+
+  const isAndroidTouch =
+    /Android/i.test(
+      navigator.userAgent
+    ) &&
+    (
+      navigator.maxTouchPoints > 0 ||
+      "ontouchstart" in window
+    );
+
+  if (isAndroidTouch) {
+    document.querySelector(
+      "#mobile3DButton"
+    ).style.display =
+      "inline-block";
+  }
+
+  if (!window.isSecureContext) {
+    status.textContent =
+      isAndroidTouch
+        ? "Android touch device detected. The 3D mobile version is available. WebXR headset mode needs HTTPS."
+        : "This page is not using HTTPS, so WebXR cannot start. Personal computer mode is available.";
+
+    document.querySelector(
+      "#pcButton"
+    ).style.display =
+      "inline-block";
+
+    return;
+  }
+
+  if (navigator.xr) {
+    try {
+      const supported =
+        await navigator.xr.isSessionSupported(
+          "immersive-ar"
+        );
+
+      if (supported) {
+        document.querySelector(
+          "#modeTitle"
+        ).textContent =
+          "MHA XR Safety Challenge";
+
+        document.querySelector(
+          "#modeDescription"
+        ).textContent =
+          "Choose Meta Quest mixed reality, Android 3D touch aiming, or the personal computer version.";
+
+        document.querySelector(
+          "#xrButton"
+        ).style.display =
+          "inline-block";
+
+        document.querySelector(
+          "#pcButton"
+        ).style.display =
+          "inline-block";
+
+        status.textContent =
+          "WebXR mixed reality is available.";
+
+        return;
+      }
+    }
+
+    catch (error) {
+      console.warn(
+        "WebXR capability check failed:",
+        error
+      );
+    }
+  }
+
+  document.querySelector(
+    "#modeTitle"
+  ).textContent =
+    "MHA Safety Challenge";
+
+  document.querySelector(
+    "#modeDescription"
+  ).textContent =
+    isAndroidTouch
+      ? "Android Chrome detected. Play the same 3D scene and drag your finger to steer the cyan aiming ray."
+      : "WebXR is not available in this browser, so use the personal computer version.";
+
+  document.querySelector(
+    "#pcButton"
+  ).style.display =
+    "inline-block";
+
+  status.textContent =
+    isAndroidTouch
+      ? "3D mobile touch aiming is available."
+      : "Personal computer mode detected.";
+}
+
+/* =========================================================
+   DESKTOP GAME
+   ========================================================= */
+
+const pc = {
+  score: 0,
+  timeLeft: GAME_DURATION,
+  q: 0,
+  running: false,
+  locked: false,
+  timer: null,
+  fallTimer: null,
+  questionOrder: [],
+  startTime: null,
+
+  start() {
+    audio.init();
+
+    document.querySelector(
+      "#modeScreen"
+    ).style.display =
+      "none";
+
+    document.querySelector(
+      "a-scene"
+    ).style.display =
+      "none";
+
+    document.querySelector(
+      "#pcGame"
+    ).style.display =
+      "block";
+
+    this.score = 0;
+    this.timeLeft =
+      GAME_DURATION;
+
+    this.q = 0;
+    this.running = true;
+    this.locked = false;
+
+    this.startTime =
+      performance.now();
+
+    this.questionOrder =
+      shuffledQuestions();
+
+    this.updateHud();
+    this.showQuestion();
+
+    clearInterval(
+      this.timer
+    );
+
+    this.timer =
+      setInterval(
+        () => {
+          if (!this.running) {
+            return;
+          }
+
+          this.timeLeft--;
+
+          this.updateHud();
+
+          if (
+            this.timeLeft <= 0
+          ) {
+            this.end(
+              "Time is up!"
+            );
+          }
+        },
+        1000
+      );
+  },
+
+  updateHud() {
+    document.querySelector(
+      "#pcScore"
+    ).textContent =
+      `Score: ${this.score}`;
+
+    document.querySelector(
+      "#pcTime"
+    ).textContent =
+      `Time: ${this.timeLeft}`;
+
+    const total =
+      this.questionOrder.length ||
+      QUESTIONS.length;
+
+    document.querySelector(
+      "#pcProgress"
+    ).textContent =
+      `Question ${Math.min(this.q + 1, total)} / ${total}`;
+  },
+
+  showQuestion() {
+    if (!this.running) {
+      return;
+    }
+
+    if (
+      this.q >=
+      this.questionOrder.length
+    ) {
+      this.end(
+        "Challenge complete!"
+      );
+
+      return;
+    }
+
+    this.locked = false;
+
+    clearTimeout(
+      this.fallTimer
+    );
+
+    const arena =
+      document.querySelector(
+        "#pcArena"
+      );
+
+    arena.innerHTML = "";
+
+    const question =
+      this.questionOrder[
+        this.q
+      ];
+
+    document.querySelector(
+      "#pcQuestion"
+    ).textContent =
+      question.question;
+
+    document.querySelector(
+      "#pcFeedback"
+    ).style.display =
+      "none";
+
+    const xSlots =
+      [20, 50, 80];
+
+    for (
+      let i =
+        xSlots.length - 1;
+      i > 0;
+      i--
+    ) {
+      const j =
+        Math.floor(
+          Math.random() *
+          (i + 1)
+        );
+
+      [
+        xSlots[i],
+        xSlots[j]
+      ] = [
+        xSlots[j],
+        xSlots[i]
+      ];
+    }
+
+    const arrivals = [];
+
+    question.answers.forEach(
+      (answer, index) => {
+        const target =
+          document.createElement(
+            "div"
+          );
+
+        target.className =
+          "pcTarget";
+
+        target.dataset.index =
+          index;
+
+        target.style.width =
+          `${PC_TARGET_WIDTH}px`;
+
+        target.style.height =
+          `${PC_TARGET_HEIGHT}px`;
+
+        const startPercent =
+          Math.max(
+            10,
+            Math.min(
+              90,
+              xSlots[index] +
+              randomBetween(
+                -8,
+                8
+              )
+            )
+          );
+
+        target.style.left =
+          `calc(${startPercent}% - ${PC_TARGET_WIDTH / 2}px)`;
+
+        target.style.top =
+          `-${PC_TARGET_HEIGHT + 20}px`;
+
+        target.innerHTML =
+          `
+          <div class="pcIcon">
+            ${answer.icon}
+          </div>
+          <div>
+            ${answer.label.replace(/\n/g, "<br>")}
+          </div>
+          ${
+            question.useModels
+              ? '<div style="font-size:10px;margin-top:3px;color:#93c5fd">3D MODEL</div>'
+              : ""
+          }
+          `;
+
+        target.onclick =
+          () => {
+            this.choose(
+              index,
+              target
+            );
+          };
+
+        arena.appendChild(
+          target
+        );
+
+        const delay =
+          randomBetween(
+            0,
+            MAX_DROP_DELAY_SECONDS
+          );
+
+        const duration =
+          randomBetween(
+            MIN_FALL_SECONDS,
+            MAX_FALL_SECONDS
+          );
+
+        arrivals.push(
+          delay + duration
+        );
+
+        setTimeout(
+          () => {
+            if (
+              !this.running ||
+              this.locked
+            ) {
+              return;
+            }
+
+            target.style.transition =
+              `top ${duration}s linear, background .12s, transform .12s`;
+
+            target.style.top =
+              `calc(100% - ${PC_TARGET_HEIGHT + 12}px)`;
+          },
+          delay * 1000
+        );
+      }
+    );
+
+    this.fallTimer =
+      setTimeout(
+        () => {
+          this.missed();
+        },
+        Math.min(
+          ...arrivals
+        ) * 1000
+      );
+
+    this.updateHud();
+  },
+
+  choose(index, element) {
+    if (
+      !this.running ||
+      this.locked
+    ) {
+      return;
+    }
+
+    const question =
+      this.questionOrder[
+        this.q
+      ];
+
+    const answer =
+      question.answers[
+        index
+      ];
+
+    if (answer.correct) {
+      this.locked =
+        true;
+
+      clearTimeout(
+        this.fallTimer
+      );
+
+      this.score +=
+        POINTS_CORRECT;
+
+      element.style.background =
+        COLOURS.correct;
+
+      audio.correct();
+
+      this.feedback(
+        `CORRECT +${POINTS_CORRECT} — ${question.explanation}`,
+        COLOURS.correct
+      );
+
+      this.updateHud();
+
+      setTimeout(
+        () => {
+          this.q++;
+          this.showQuestion();
+        },
+        1800
+      );
+    }
+
+    else {
+      this.score +=
+        POINTS_WRONG;
+
+      element.style.background =
+        COLOURS.wrong;
+
+      element.style.pointerEvents =
+        "none";
+
+      audio.wrong();
+
+      this.feedback(
+        `WRONG ${POINTS_WRONG} — try another target.`,
+        COLOURS.wrong
+      );
+
+      this.updateHud();
+    }
+  },
+
+  missed() {
+    if (
+      !this.running ||
+      this.locked
+    ) {
+      return;
+    }
+
+    this.locked =
+      true;
+
+    this.score +=
+      POINTS_MISSED;
+
+    audio.explode();
+
+    this.updateHud();
+
+    const arena =
+      document.querySelector(
+        "#pcArena"
+      );
+
+    const boom =
+      document.createElement(
+        "div"
+      );
+
+    boom.className =
+      "explosion";
+
+    boom.style.left =
+      "50%";
+
+    boom.style.top =
+      "82%";
+
+    arena.appendChild(
+      boom
+    );
+
+    this.feedback(
+      `TOO SLOW ${POINTS_MISSED} — the targets reached the ground.`,
+      COLOURS.wrong
+    );
+
+    setTimeout(
+      () => {
+        this.q++;
+        this.showQuestion();
+      },
+      1100
+    );
+  },
+
+  feedback(
+    message,
+    colour
+  ) {
+    const feedback =
+      document.querySelector(
+        "#pcFeedback"
+      );
+
+    feedback.textContent =
+      message;
+
+    feedback.style.background =
+      colour;
+
+    feedback.style.display =
+      "block";
+  },
+
+  stop() {
+    if (!this.running) {
+      return;
+    }
+
+    this.end(
+      "Game stopped."
+    );
+  },
+
+  end(reason) {
+    this.running =
+      false;
+
+    clearInterval(
+      this.timer
+    );
+
+    clearTimeout(
+      this.fallTimer
+    );
+
+    clearCurrentXRHighlight();
+
+    const elapsed =
+      this.startTime
+        ? Math.max(
+            0,
+            Math.round(
+              (
+                performance.now() -
+                this.startTime
+              ) /
+              1000
+            )
+          )
+        : 0;
+
+    document.querySelector(
+      "#pcGameOverText"
+    ).textContent =
+      `${reason} Your Score: ${this.score} | Time Taken: ${elapsed} seconds`;
+
+    document.querySelector(
+      "#pcGameOver"
+    ).style.display =
+      "flex";
+  }
+};
+
+/* =========================================================
+   GLB MATERIAL DEBUG
+   ========================================================= */
+
+AFRAME.registerComponent(
+  "log-gltf-materials",
+  {
+    init() {
+      this.el.addEventListener(
+        "model-loaded",
+        () => {
+          const object =
+            this.el.getObject3D(
+              "mesh"
+            );
+
+          if (!object) {
+            return;
+          }
+
+          object.traverse(
+            (node) => {
+              if (
+                !node.isMesh ||
+                !node.material
+              ) {
+                return;
+              }
+
+              const materials =
+                Array.isArray(
+                  node.material
+                )
+                  ? node.material
+                  : [node.material];
+
+              materials.forEach(
+                (material) => {
+                  console.log(
+                    "GLB material loaded:",
+                    {
+                      mesh:
+                        node.name,
+
+                      material:
+                        material.name,
+
+                      color:
+                        material.color
+                          ? "#" +
+                            material.color.getHexString()
+                          : "n/a",
+
+                      hasMap:
+                        Boolean(
+                          material.map
+                        ),
+
+                      metalness:
+                        material.metalness,
+
+                      roughness:
+                        material.roughness
+                    }
+                  );
+                }
+              );
+            }
+          );
+        }
+      );
+    }
+  }
+);
+
+/* =========================================================
+   ANDROID 3D MOBILE AIMING
+   SAME A-FRAME / XR GAME
+   ========================================================= */
+
+let mobile3DMode = false;
+
+let currentMobileXRTarget =
+  null;
+
+let mobileRayYaw = 0;
+let mobileRayPitch = 0;
+
+let mobileDragActive =
+  false;
+
+let mobileLastX = 0;
+let mobileLastY = 0;
+
+let mobileAimRAF = null;
+
+/*
+ * Change these if aiming feels
+ * too fast or too slow.
+ */
+const MOBILE_YAW_SENSITIVITY =
+  0.18;
+
+const MOBILE_PITCH_SENSITIVITY =
+  0.16;
+
+const MOBILE_MAX_YAW =
+  42;
+
+const MOBILE_MAX_PITCH =
+  28;
+
+function updateMobileRayRotation() {
+  const ray =
+    document.querySelector(
+      "#mobileAimRay"
+    );
+
+  if (!ray) {
+    return;
+  }
+
+  ray.setAttribute(
+    "rotation",
+    `${mobileRayPitch} ${mobileRayYaw} 0`
+  );
+}
+
+function updateMobileRayTarget() {
+  if (!mobile3DMode) {
+    return;
+  }
+
+  const ray =
+    document.querySelector(
+      "#mobileAimRay"
+    );
+
+  const status =
+    document.querySelector(
+      "#mobile3DStatus"
+    );
+
+  if (
+    !ray ||
+    !ray.components.raycaster
+  ) {
+    return;
+  }
+
+  const intersections =
+    ray.components
+      .raycaster
+      .intersections ||
+    [];
+
+  const hit =
+    intersections.length &&
+    intersections[0].object
+      ? intersections[0]
+          .object.el
+      : null;
+
+  /*
+   * This is important:
+   * SHOOT uses exactly the same
+   * target that this ray is hitting.
+   */
+  currentMobileXRTarget =
+    hit || null;
+
+  if (!status) {
+    return;
+  }
+
+  if (!hit) {
+    status.textContent =
+      "Aim at a target";
+  }
+
+  else if (
+    hit.id ===
+    "xrStopButton"
+  ) {
+    status.textContent =
+      "STOP GAME selected - tap SHOOT";
+  }
+
+  else if (
+    hit.id ===
+    "xrExitButton"
+  ) {
+    status.textContent =
+      "BACK selected - tap SHOOT";
+  }
+
+  else if (
+    hit.classList.contains(
+      "shootable"
+    )
+  ) {
+    status.textContent =
+      "TARGET LOCKED - tap SHOOT";
+  }
+
+  else {
+    status.textContent =
+      "Aim at a target";
+  }
+}
+
+function startMobileAimLoop() {
+  cancelAnimationFrame(
+    mobileAimRAF
+  );
+
+  const loop = () => {
+    if (mobile3DMode) {
+      updateMobileRayTarget();
+
+      mobileAimRAF =
+        requestAnimationFrame(
+          loop
+        );
+    }
+  };
+
+  mobileAimRAF =
+    requestAnimationFrame(
+      loop
+    );
+}
+
+function stopMobileAimLoop() {
+  cancelAnimationFrame(
+    mobileAimRAF
+  );
+
+  mobileAimRAF = null;
+
+  currentMobileXRTarget =
+    null;
+}
+
+function startMobile3DMode() {
+  audio.init();
+
+  mobile3DMode = true;
+
+  mobileRayYaw = 0;
+  mobileRayPitch = 0;
+
+  currentMobileXRTarget =
+    null;
+
+  document.body.classList.add(
+    "mobile-3d-mode"
+  );
+
+  document.querySelector(
+    "#modeScreen"
+  ).style.display =
+    "none";
+
+  document.querySelector(
+    "#pcGame"
+  ).style.display =
+    "none";
+
+  document.querySelector(
+    "a-scene"
+  ).style.display =
+    "block";
+
+  document.querySelector(
+    "#mobile3DUI"
+  ).style.display =
+    "block";
+
+  document.querySelector(
+    "#mobile3DRestart"
+  ).style.display =
+    "none";
+
+  document.querySelector(
+    "#mobileAimRay"
+  ).setAttribute(
+    "visible",
+    true
+  );
+
+  updateMobileRayRotation();
+
+  const game =
+    document.querySelector(
+      "#xrGameManager"
+    ).components[
+      "xr-quiz-game"
+    ];
+
+  if (game) {
+    game.start();
+  }
+
+  startMobileAimLoop();
+}
+
+function leaveMobile3DMode() {
+  const game =
+    document.querySelector(
+      "#xrGameManager"
+    ).components[
+      "xr-quiz-game"
+    ];
+
+  if (game) {
+    game.running =
+      false;
+
+    clearInterval(
+      game.timer
+    );
+
+    clearTimeout(
+      game.fallTimer
+    );
+  }
+
+  stopMobileAimLoop();
+
+  clearCurrentXRHighlight();
+
+  mobile3DMode =
+    false;
+
+  document.body.classList.remove(
+    "mobile-3d-mode"
+  );
+
+  document.querySelector(
+    "#mobile3DUI"
+  ).style.display =
+    "none";
+
+  document.querySelector(
+    "#mobileAimRay"
+  ).setAttribute(
+    "visible",
+    false
+  );
+
+  document.querySelector(
+    "#modeScreen"
+  ).style.display =
+    "flex";
+
+  document.querySelector(
+    "#modeStatus"
+  ).textContent =
+    "3D mobile game closed. Choose a mode to play again.";
+}
+
+function mobile3DShoot() {
+  if (!mobile3DMode) {
+    return;
+  }
+
+  updateMobileRayTarget();
+
+  const hit =
+    currentMobileXRTarget;
+
+  const game =
+    document.querySelector(
+      "#xrGameManager"
+    ).components[
+      "xr-quiz-game"
+    ];
+
+  if (
+    !hit ||
+    !game
+  ) {
+    return;
+  }
+
+  audio.shoot();
+
+  if (
+    hit.id ===
+    "xrStopButton"
+  ) {
+    game.stop();
+    return;
+  }
+
+  if (
+    hit.id ===
+    "xrExitButton"
+  ) {
+    leaveMobile3DMode();
+    return;
+  }
+
+  if (
+    game.running &&
+    !game.locked &&
+    hit.classList.contains(
+      "shootable"
+    )
+  ) {
+    game.choose(
+      hit
+    );
+  }
+}
+
+/* =========================================================
+   XR QUIZ GAME
+   ========================================================= */
+
+AFRAME.registerComponent(
+  "xr-quiz-game",
+  {
+    init() {
+      this.score = 0;
+      this.timeLeft =
+        GAME_DURATION;
+
+      this.q = 0;
+      this.running = false;
+      this.locked = false;
+
+      this.timer = null;
+      this.fallTimer = null;
+
+      this.questionOrder =
+        [];
+
+      this.startTime =
+        null;
+
+      this.answerArea =
+        document.querySelector(
+          "#xrAnswerArea"
+        );
+
+      this.feedback =
+        document.querySelector(
+          "#xrFeedback"
+        );
+
+      const scene =
+        document.querySelector(
+          "a-scene"
+        );
+
+      scene.addEventListener(
+        "enter-vr",
+        () => {
+          setTimeout(
+            () => {
+              this.start();
+            },
+            350
+          );
+        }
+      );
+    },
+
+    start() {
+      clearInterval(
+        this.timer
+      );
+
+      clearTimeout(
+        this.fallTimer
+      );
+
+      if (mobile3DMode) {
+        document.querySelector(
+          "#mobile3DRestart"
+        ).style.display =
+          "none";
+      }
+
+      this.score = 0;
+      this.timeLeft =
+        GAME_DURATION;
+
+      this.q = 0;
+      this.running = true;
+      this.locked = false;
+
+      this.startTime =
+        performance.now();
+
+      this.questionOrder =
+        shuffledQuestions();
+
+      document.querySelector(
+        "#xrGameOver"
+      ).setAttribute(
+        "visible",
+        false
+      );
+
+      document.querySelector(
+        "#xrQuizRoot"
+      ).setAttribute(
+        "visible",
+        true
+      );
+
+      this.updateHud();
+      this.showQuestion();
+
+      this.timer =
+        setInterval(
+          () => {
+            if (!this.running) {
+              return;
+            }
+
+            this.timeLeft--;
+
+            this.updateHud();
+
+            if (
+              this.timeLeft <= 0
+            ) {
+              this.end(
+                "Time is up!"
+              );
+            }
+          },
+          1000
+        );
+    },
+
+    updateHud() {
+      document.querySelector(
+        "#xrScore"
+      ).setAttribute(
+        "value",
+        `Score: ${this.score}`
+      );
+
+      document.querySelector(
+        "#xrTime"
+      ).setAttribute(
+        "value",
+        `Time: ${this.timeLeft}`
+      );
+
+      const total =
+        this.questionOrder.length ||
+        QUESTIONS.length;
+
+      document.querySelector(
+        "#xrProgress"
+      ).setAttribute(
+        "value",
+        `Question ${Math.min(this.q + 1, total)} / ${total}`
+      );
+    },
+
+    showQuestion() {
+      if (!this.running) {
+        return;
+      }
+
+      if (
+        this.q >=
+        this.questionOrder.length
+      ) {
+        this.end(
+          "Challenge complete!"
+        );
+
+        return;
+      }
+
+      this.locked = false;
+
+      clearTimeout(
+        this.fallTimer
+      );
+
+      clearCurrentXRHighlight();
+
+      this.answerArea.innerHTML =
+        "";
+
+      this.feedback.setAttribute(
+        "visible",
+        false
+      );
+
+      const question =
+        this.questionOrder[
+          this.q
+        ];
+
+      document.querySelector(
+        "#xrQuestion"
+      ).setAttribute(
+        "value",
+        question.question
+      );
+
+      const baseXs =
+        [-0.55, 0, 0.55];
+
+      for (
+        let i =
+          baseXs.length - 1;
+        i > 0;
+        i--
+      ) {
+        const j =
+          Math.floor(
+            Math.random() *
+            (i + 1)
+          );
+
+        [
+          baseXs[i],
+          baseXs[j]
+        ] = [
+          baseXs[j],
+          baseXs[i]
+        ];
+      }
+
+      const arrivals =
+        [];
+
+      question.answers.forEach(
+        (answer, index) => {
+          let hitbox;
+          let holder;
+
+          if (
+            question.useModels
+          ) {
+            const built =
+              createXRModelAnswer(
+                answer
+              );
+
+            holder =
+              built.holder;
+
+            hitbox =
+              built.hitbox;
+
+            hitbox.dataset.index =
+              index;
+          }
+
+          else {
+            const visibleCard =
+              document.createElement(
+                "a-box"
+              );
+
+            visibleCard.setAttribute(
+              "width",
+              XR_TARGET_WIDTH
+            );
+
+            visibleCard.setAttribute(
+              "height",
+              XR_TARGET_HEIGHT
+            );
+
+            visibleCard.setAttribute(
+              "depth",
+              "0.05"
+            );
+
+            visibleCard.setAttribute(
+              "color",
+              COLOURS.normal
+            );
+
+            addXRIcon(
+              visibleCard,
+              answer.icon
+            );
+
+            const text =
+              document.createElement(
+                "a-text"
+              );
+
+            text.setAttribute(
+              "value",
+              answer.label
+            );
+
+            text.setAttribute(
+              "align",
+              "center"
+            );
+
+            text.setAttribute(
+              "position",
+              "0 -0.075 0.035"
+            );
+
+            text.setAttribute(
+              "width",
+              "0.70"
+            );
+
+            text.setAttribute(
+              "wrap-count",
+              "16"
+            );
+
+            visibleCard.appendChild(
+              text
+            );
+
+            holder =
+              document.createElement(
+                "a-entity"
+              );
+
+            holder.classList.add(
+              "xr-answer-holder"
+            );
+
+            holder.appendChild(
+              visibleCard
+            );
+
+            hitbox =
+              attachAimAssist(
+                holder,
+                visibleCard,
+                index
+              );
+          }
+
+          const startX =
+            baseXs[index] +
+            randomBetween(
+              -0.14,
+              0.14
+            );
+
+          const startY =
+            randomBetween(
+              1.72,
+              1.82
+            );
+
+          const endX =
+            Math.max(
+              -1.05,
+              Math.min(
+                1.05,
+                startX +
+                randomBetween(
+                  -0.60,
+                  0.60
+                )
+              )
+            );
+
+          const endY =
+            randomBetween(
+              -0.64,
+              -0.48
+            );
+
+          const endZ =
+            randomBetween(
+              -0.22,
+              0.14
+            );
+
+          const delay =
+            randomBetween(
+              0,
+              MAX_DROP_DELAY_SECONDS
+            );
+
+          const duration =
+            randomBetween(
+              MIN_FALL_SECONDS,
+              MAX_FALL_SECONDS
+            );
+
+          arrivals.push(
+            delay +
+            duration
+          );
+
+          holder.setAttribute(
+            "position",
+            `${startX} ${startY} 0`
+          );
+
+          this.answerArea.appendChild(
+            holder
+          );
+
+          setTimeout(
+            () => {
+              if (
+                !this.running ||
+                this.locked
+              ) {
+                return;
+              }
+
+              holder.setAttribute(
+                "animation__fall",
+                `property: position; to: ${endX} ${endY} ${endZ}; dur: ${duration * 1000}; easing: linear`
+              );
+
+              holder.setAttribute(
+                "animation__spin",
+                `property: rotation; to: ${randomBetween(-18,18)} ${randomBetween(-28,28)} ${randomBetween(-12,12)}; dur: ${duration * 1000}; easing: linear`
+              );
+            },
+            delay * 1000
+          );
+        }
+      );
+
+      this.fallTimer =
+        setTimeout(
+          () => {
+            this.missed();
+          },
+          Math.min(
+            ...arrivals
+          ) * 1000
+        );
+
+      this.updateHud();
+    },
+
+    choose(hitbox) {
+      if (
+        !this.running ||
+        this.locked
+      ) {
+        return;
+      }
+
+      const index =
+        Number(
+          hitbox.dataset.index
+        );
+
+      const question =
+        this.questionOrder[
+          this.q
+        ];
+
+      const answer =
+        question.answers[
+          index
+        ];
+
+      const parent =
+        hitbox.parentElement;
+
+      const visibleCard =
+        parent
+          ? Array.from(
+              parent.children
+            ).find(
+              (child) =>
+                child.tagName &&
+                child.tagName.toLowerCase() ===
+                  "a-box" &&
+                !child.classList.contains(
+                  "shootable"
+                )
+            )
+          : null;
+
+      if (answer.correct) {
+        this.locked =
+          true;
+
+        clearTimeout(
+          this.fallTimer
+        );
+
+        this.score +=
+          POINTS_CORRECT;
+
+        if (visibleCard) {
+          visibleCard.setAttribute(
+            "color",
+            COLOURS.correct
+          );
+        }
+
+        audio.correct();
+
+        this.showFeedback(
+          `CORRECT +${POINTS_CORRECT}\n${question.explanation}`,
+          COLOURS.correct
+        );
+
+        this.updateHud();
+
+        setTimeout(
+          () => {
+            this.q++;
+            this.showQuestion();
+          },
+          2100
+        );
+      }
+
+      else {
+        this.score +=
+          POINTS_WRONG;
+
+        hitbox.classList.remove(
+          "shootable"
+        );
+
+        if (visibleCard) {
+          visibleCard.setAttribute(
+            "color",
+            COLOURS.wrong
+          );
+        }
+
+        audio.wrong();
+
+        this.showFeedback(
+          `WRONG ${POINTS_WRONG}\nTry another target.`,
+          COLOURS.wrong
+        );
+
+        this.updateHud();
+      }
+    },
+
+    missed() {
+      if (
+        !this.running ||
+        this.locked
+      ) {
+        return;
+      }
+
+      this.locked =
+        true;
+
+      this.score +=
+        POINTS_MISSED;
+
+      audio.explode();
+
+      this.updateHud();
+
+      this.answerArea
+        .querySelectorAll(
+          ".shootable"
+        )
+        .forEach(
+          (element) => {
+            element.classList.remove(
+              "shootable"
+            );
+          }
+        );
+
+      this.createExplosion();
+
+      this.showFeedback(
+        `TOO SLOW ${POINTS_MISSED}\nThe targets reached the ground.`,
+        COLOURS.wrong
+      );
+
+      setTimeout(
+        () => {
+          this.q++;
+          this.showQuestion();
+        },
+        1300
+      );
+    },
+
+    createExplosion() {
+      const explosion =
+        document.createElement(
+          "a-sphere"
+        );
+
+      explosion.setAttribute(
+        "position",
+        "0 -0.45 0"
+      );
+
+      explosion.setAttribute(
+        "radius",
+        "0.12"
+      );
+
+      explosion.setAttribute(
+        "color",
+        "#FFB300"
+      );
+
+      explosion.setAttribute(
+        "material",
+        "shader: flat; opacity: 0.9; transparent: true"
+      );
+
+      explosion.setAttribute(
+        "animation__grow",
+        "property: scale; to: 4 4 4; dur: 350; easing: easeOutQuad"
+      );
+
+      explosion.setAttribute(
+        "animation__fade",
+        "property: material.opacity; to: 0; dur: 400; easing: linear"
+      );
+
+      this.answerArea.appendChild(
+        explosion
+      );
+
+      setTimeout(
+        () => {
+          explosion.remove();
+        },
+        450
+      );
+    },
+
+    showFeedback(
+      message,
+      colour
+    ) {
+      this.feedback.setAttribute(
+        "visible",
+        true
+      );
+
+      this.feedback.setAttribute(
+        "color",
+        colour
+      );
+
+      document.querySelector(
+        "#xrFeedbackText"
+      ).setAttribute(
+        "value",
+        message
+      );
+    },
+
+    stop() {
+      if (!this.running) {
+        return;
+      }
+
+      this.end(
+        "Game stopped."
+      );
+    },
+
+    async exitXR() {
+      if (mobile3DMode) {
+        leaveMobile3DMode();
+        return;
+      }
+
+      this.running =
+        false;
+
+      clearInterval(
+        this.timer
+      );
+
+      clearTimeout(
+        this.fallTimer
+      );
+
+      const scene =
+        document.querySelector(
+          "a-scene"
+        );
+
+      try {
+        await scene.exitVR();
+      }
+
+      catch (error) {
+        console.error(
+          error
+        );
+      }
+
+      document.querySelector(
+        "#modeScreen"
+      ).style.display =
+        "flex";
+
+      document.querySelector(
+        "#modeStatus"
+      ).textContent =
+        "Exited XR. Choose a mode to play again.";
+    },
+
+    end(reason) {
+      this.running =
+        false;
+
+      clearInterval(
+        this.timer
+      );
+
+      clearTimeout(
+        this.fallTimer
+      );
+
+      document.querySelector(
+        "#xrQuizRoot"
+      ).setAttribute(
+        "visible",
+        false
+      );
+
+      document.querySelector(
+        "#xrGameOver"
+      ).setAttribute(
+        "visible",
+        true
+      );
+
+      const elapsed =
+        this.startTime
+          ? Math.max(
+              0,
+              Math.round(
+                (
+                  performance.now() -
+                  this.startTime
+                ) /
+                1000
+              )
+            )
+          : 0;
+
+      document.querySelector(
+        "#xrGameOverReason"
+      ).setAttribute(
+        "value",
+        reason
+      );
+
+      document.querySelector(
+        "#xrGameOverScore"
+      ).setAttribute(
+        "value",
+        `Your Score: ${this.score}`
+      );
+
+      document.querySelector(
+        "#xrGameOverTime"
+      ).setAttribute(
+        "value",
+        `Time Taken: ${elapsed} seconds`
+      );
+
+      if (mobile3DMode) {
+        document.querySelector(
+          "#mobile3DRestart"
+        ).style.display =
+          "block";
+      }
+    }
+  }
+);
+
+/* =========================================================
+   QUEST CONTROLLER
+   ========================================================= */
+
+AFRAME.registerComponent(
+  "xr-shooter",
+  {
+    init() {
+      this.el.addEventListener(
+        "triggerdown",
+        () => {
+          this.shoot();
+        }
+      );
+
+      this.el.addEventListener(
+        "abuttondown",
+        () => {
+          const game =
+            document.querySelector(
+              "#xrGameManager"
+            ).components[
+              "xr-quiz-game"
+            ];
+
+          if (
+            game &&
+            !game.running
+          ) {
+            game.start();
+          }
+        }
+      );
+    },
+
+    shoot() {
+      const game =
+        document.querySelector(
+          "#xrGameManager"
+        ).components[
+          "xr-quiz-game"
+        ];
+
+      const raycaster =
+        this.el.components.raycaster;
+
+      if (
+        !raycaster ||
+        !raycaster.intersections ||
+        !raycaster.intersections.length
+      ) {
+        return;
+      }
+
+      const intersection =
+        raycaster.intersections[0];
+
+      const hit =
+        intersection.object &&
+        intersection.object.el;
+
+      if (
+        hit &&
+        hit.id ===
+          "xrExitButton"
+      ) {
+        audio.shoot();
+        game.exitXR();
+        return;
+      }
+
+      if (
+        hit &&
+        hit.id ===
+          "xrStopButton"
+      ) {
+        audio.shoot();
+        game.stop();
+        return;
+      }
+
+      if (
+        !game ||
+        !game.running ||
+        game.locked
+      ) {
+        return;
+      }
+
+      audio.shoot();
+
+      if (
+        hit &&
+        hit.classList.contains(
+          "shootable"
+        )
+      ) {
+        game.choose(
+          hit
+        );
+      }
+    }
+  }
+);
+
+/* =========================================================
+   PAGE EVENTS
+   ========================================================= */
+
+window.addEventListener(
+  "DOMContentLoaded",
+  () => {
+    detectMode();
+
+    document.querySelector(
+      "#pcButton"
+    ).onclick =
+      () => {
+        pc.start();
+      };
+
+    document.querySelector(
+      "#pcRestart"
+    ).onclick =
+      () => {
+        document.querySelector(
+          "#pcGameOver"
+        ).style.display =
+          "none";
+
+        pc.start();
+      };
+
+    document.querySelector(
+      "#pcStop"
+    ).onclick =
+      () => {
+        pc.stop();
+      };
+
+    document.querySelector(
+      "#mobile3DButton"
+    ).onclick =
+      () => {
+        startMobile3DMode();
+      };
+
+    document.querySelector(
+      "#mobile3DShoot"
+    ).onclick =
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        mobile3DShoot();
+      };
+
+    document.querySelector(
+      "#mobile3DBack"
+    ).onclick =
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        leaveMobile3DMode();
+      };
+
+    document.querySelector(
+      "#mobile3DRestart"
+    ).onclick =
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const game =
+          document.querySelector(
+            "#xrGameManager"
+          ).components[
+            "xr-quiz-game"
+          ];
+
+        if (game) {
+          game.start();
+        }
+      };
+
+    /*
+     * Drag anywhere on the 3D view
+     * to steer the ray.
+     */
+    window.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (!mobile3DMode) {
+          return;
+        }
+
+        if (
+          event.target.closest &&
+          event.target.closest(
+            "#mobile3DShoot,#mobile3DBack,#mobile3DRestart"
+          )
+        ) {
+          return;
+        }
+
+        mobileDragActive =
+          true;
+
+        mobileLastX =
+          event.clientX;
+
+        mobileLastY =
+          event.clientY;
+      }
+    );
+
+    window.addEventListener(
+      "pointermove",
+      (event) => {
+        if (
+          !mobile3DMode ||
+          !mobileDragActive
+        ) {
+          return;
+        }
+
+        const dx =
+          event.clientX -
+          mobileLastX;
+
+        const dy =
+          event.clientY -
+          mobileLastY;
+
+        mobileLastX =
+          event.clientX;
+
+        mobileLastY =
+          event.clientY;
+
+        mobileRayYaw -=
+          dx *
+          MOBILE_YAW_SENSITIVITY;
+
+        mobileRayPitch -=
+          dy *
+          MOBILE_PITCH_SENSITIVITY;
+
+        mobileRayYaw =
+          Math.max(
+            -MOBILE_MAX_YAW,
+            Math.min(
+              MOBILE_MAX_YAW,
+              mobileRayYaw
+            )
+          );
+
+        mobileRayPitch =
+          Math.max(
+            -MOBILE_MAX_PITCH,
+            Math.min(
+              MOBILE_MAX_PITCH,
+              mobileRayPitch
+            )
+          );
+
+        updateMobileRayRotation();
+
+        event.preventDefault();
+      },
+      {
+        passive: false
+      }
+    );
+
+    window.addEventListener(
+      "pointerup",
+      () => {
+        mobileDragActive =
+          false;
+      }
+    );
+
+    window.addEventListener(
+      "pointercancel",
+      () => {
+        mobileDragActive =
+          false;
+      }
+    );
+
+    document.querySelector(
+      "#xrButton"
+    ).onclick =
+      async () => {
+        audio.init();
+
+        try {
+          mobile3DMode =
+            false;
+
+          document.querySelector(
+            "#mobile3DUI"
+          ).style.display =
+            "none";
+
+          document.querySelector(
+            "#mobileAimRay"
+          ).setAttribute(
+            "visible",
+            false
+          );
+
+          document.querySelector(
+            "#modeScreen"
+          ).style.display =
+            "none";
+
+          await document.querySelector(
+            "a-scene"
+          ).enterAR();
+        }
+
+        catch (error) {
+          document.querySelector(
+            "#modeScreen"
+          ).style.display =
+            "flex";
+
+          document.querySelector(
+            "#modeStatus"
+          ).textContent =
+            "Could not start WebXR. You can still use the 3D mobile or personal computer version.";
+
+          console.error(
+            error
+          );
+        }
+      };
+  }
+);
+</script>
+</head>
+
+<body>
+
+<div id="modeScreen">
+  <div class="card">
+    <h1 id="modeTitle">
+      MHA Safety Challenge
+    </h1>
+
+    <p id="modeDescription">
+      Checking whether this browser supports mixed reality...
+    </p>
+
+    <button
+      id="xrButton"
+      type="button"
+      style="display:none"
+    >
+      Enter Mixed Reality
+    </button>
+
+    <button
+      id="mobile3DButton"
+      type="button"
+      style="display:none"
+    >
+      Play 3D Mobile Version
+    </button>
+
+    <button
+      id="pcButton"
+      type="button"
+      style="display:none"
+    >
+      Play Personal Computer Version
+    </button>
+
+    <div
+      id="modeStatus"
+      style="margin-top:16px;color:#cbd5e1"
+    ></div>
+  </div>
+</div>
+
+<!-- =======================================================
+     DESKTOP VERSION
+     ======================================================= -->
+
+<div id="pcGame">
+
+  <div id="pcControls">
+    <button
+      id="pcStop"
+      type="button"
+      class="xr-control"
+    >
+      Stop Game
+    </button>
+  </div>
+
+  <div id="pcHud">
+
+    <div id="pcQuestion">
+      Question
+    </div>
+
+    <div id="pcStats">
+      <span id="pcProgress">
+        Question 1 / 6
+      </span>
+
+      <span id="pcScore">
+        Score: 0
+      </span>
+
+      <span id="pcTime">
+        Time: 60
+      </span>
+    </div>
+
+  </div>
+
+  <div id="pcArena"></div>
+
+  <div id="pcFeedback"></div>
+
+  <div id="pcGameOver">
+    <div class="card">
+
+      <h1>
+        Challenge Complete
+      </h1>
+
+      <p id="pcGameOverText"></p>
+
+      <button
+        id="pcRestart"
+        type="button"
+      >
+        Restart
+      </button>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- =======================================================
+     ANDROID 3D TOUCH CONTROLS
+     ======================================================= -->
+
+<div id="mobile3DUI">
+
+  <div id="mobile3DHelp">
+    Drag anywhere to steer the cyan ray.
+    <br>
+    <span id="mobile3DStatus">
+      Aim at a target
+    </span>
+  </div>
+
+  <button
+    id="mobile3DBack"
+    type="button"
+  >
+    BACK
+  </button>
+
+  <button
+    id="mobile3DShoot"
+    type="button"
+  >
+    SHOOT
+  </button>
+
+  <button
+    id="mobile3DRestart"
+    type="button"
+  >
+    RESTART
+  </button>
+
+</div>
+
+<!-- =======================================================
+     SAME A-FRAME SCENE USED BY QUEST AND ANDROID
+     ======================================================= -->
+
+<a-scene
+  style="display:block"
+  xr-mode-ui="XRMode: ar"
+  renderer="
+    alpha: true;
+    colorManagement: true;
+    antialias: true
+  "
+  background="transparent: true"
+  webxr="
+    referenceSpaceType: local-floor;
+    optionalFeatures: local-floor
+  "
+>
+
+  <!-- Camera + Android mobile ray -->
+
+  <a-camera
+    id="mainCamera"
+    position="0 1.6 0"
+    wasd-controls-enabled="false"
+    look-controls="touchEnabled: false"
+  >
+
+    <a-entity
+      id="mobileAimRay"
+      visible="false"
+      position="0 0 -0.05"
+      rotation="0 0 0"
+      raycaster="
+        objects: .shootable, .xrUtility;
+        far: 6;
+        showLine: true;
+        lineColor: #22D3EE;
+        lineOpacity: 0.95;
+        interval: 30
+      "
+    ></a-entity>
+
+  </a-camera>
+
+  <!-- Lighting -->
+
+  <a-light
+    type="ambient"
+    color="#FFFFFF"
+    intensity="1.5"
+  ></a-light>
+
+  <a-light
+    type="directional"
+    color="#FFFFFF"
+    intensity="1.8"
+    position="-1 3 2"
+  ></a-light>
+
+  <a-light
+    type="directional"
+    color="#FFFFFF"
+    intensity="0.8"
+    position="2 2 1"
+  ></a-light>
+
+  <!-- Quest controllers -->
+
+  <a-entity
+    id="leftController"
+    meta-touch-controls="hand: left"
+  ></a-entity>
+
+  <a-entity
+    id="rightController"
+    meta-touch-controls="hand: right"
+    raycaster="
+      objects: .shootable, .xrUtility;
+      far: 6;
+      showLine: true;
+      lineColor: #22D3EE;
+      lineOpacity: 0.95
+    "
+    xr-shooter
+  ></a-entity>
+
+  <!-- Game manager -->
+
+  <a-entity
+    id="xrGameManager"
+    xr-quiz-game
+  ></a-entity>
+
+  <!-- Stop / Exit controls -->
+
+  <a-entity
+    id="xrControls"
+    position="0 2.78 -2.5"
+  >
+
+    <a-box
+      id="xrStopButton"
+      class="xrUtility"
+      width="0.58"
+      height="0.18"
+      depth="0.04"
+      position="-0.32 0 0"
+      color="#B91C1C"
+    >
+
+      <a-text
+        value="STOP GAME"
+        position="0 0 0.03"
+        width="0.95"
+        align="center"
+      ></a-text>
+
+    </a-box>
+
+    <a-box
+      id="xrExitButton"
+      class="xrUtility"
+      width="0.58"
+      height="0.18"
+      depth="0.04"
+      position="0.32 0 0"
+      color="#475569"
+    >
+
+      <a-text
+        value="EXIT XR"
+        position="0 0 0.03"
+        width="0.95"
+        align="center"
+      ></a-text>
+
+    </a-box>
+
+  </a-entity>
+
+  <!-- Quiz -->
+
+  <a-entity id="xrQuizRoot">
+
+    <a-entity
+      position="0 2.25 -2.7"
+    >
+
+      <a-box
+        width="2.75"
+        height="0.56"
+        depth="0.045"
+        color="#0F172A"
+        opacity="0.94"
+      ></a-box>
+
+      <a-text
+        id="xrQuestion"
+        value="Question"
+        position="0 0.07 0.04"
+        width="2.35"
+        align="center"
+        wrap-count="48"
+      ></a-text>
+
+      <a-text
+        id="xrProgress"
+        value="Question 1 / 6"
+        position="-1.12 -0.18 0.04"
+        width="1.05"
+        color="#93C5FD"
+      ></a-text>
+
+      <a-text
+        id="xrScore"
+        value="Score: 0"
+        position="0.35 -0.18 0.04"
+        width="0.95"
+      ></a-text>
+
+      <a-text
+        id="xrTime"
+        value="Time: 60"
+        position="0.85 -0.18 0.04"
+        width="0.95"
+        color="#FACC15"
+      ></a-text>
+
+    </a-entity>
+
+    <a-entity
+      id="xrAnswerArea"
+      position="0 0 -2.7"
+    ></a-entity>
+
+    <a-box
+      id="xrFeedback"
+      position="0 0.42 -2.55"
+      width="3.0"
+      height="0.5"
+      depth="0.04"
+      color="#16A34A"
+      visible="false"
+    >
+
+      <a-text
+        id="xrFeedbackText"
+        value=""
+        position="0 0 0.03"
+        width="2.7"
+        align="center"
+        wrap-count="48"
+      ></a-text>
+
+    </a-box>
+
+  </a-entity>
+
+  <!-- Game over -->
+
+  <a-entity
+    id="xrGameOver"
+    position="0 1.5 -2.3"
+    visible="false"
+  >
+
+    <a-box
+      width="2.9"
+      height="1.55"
+      depth="0.06"
+      color="#111827"
+      opacity="0.96"
+    ></a-box>
+
+    <a-text
+      value="CHALLENGE COMPLETE"
+      position="0 0.48 0.04"
+      width="3.1"
+      align="center"
+      color="#FACC15"
+    ></a-text>
+
+    <a-text
+      id="xrGameOverReason"
+      value=""
+      position="0 0.17 0.04"
+      width="2.4"
+      align="center"
+      color="#BFDBFE"
+    ></a-text>
+
+    <a-text
+      id="xrGameOverScore"
+      value="Your Score: 0"
+      position="0 -0.06 0.04"
+      width="2.8"
+      align="center"
+    ></a-text>
+
+    <a-text
+      id="xrGameOverTime"
+      value="Time Taken: 0 seconds"
+      position="0 -0.27 0.04"
+      width="2.4"
+      align="center"
+      color="#BFDBFE"
+    ></a-text>
+
+    <a-text
+      value="Quest: press A to restart | Mobile: tap RESTART"
+      position="0 -0.50 0.04"
+      width="2.4"
+      align="center"
+      color="#67E8F9"
+      wrap-count="38"
+    ></a-text>
+
+  </a-entity>
+
+</a-scene>
+
+</body>
+</html>
