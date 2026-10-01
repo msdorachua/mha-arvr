@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+  >
+
+  <title>XR Target Shooting</title>
+
+  <!-- A-Frame 1.8.0 -->
+  <script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #10131a;
+    }
+
+    #startScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #111827, #1f2937);
+      color: white;
+      text-align: center;
+    }
+
+    #startCard {
+      max-width: 600px;
+      margin: 20px;
+      padding: 40px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 38px;
+    }
+
+    p {
+      line-height: 1.6;
+      font-size: 18px;
+    }
+
+    #enterXRButton {
+      margin-top: 20px;
+      padding: 16px 34px;
+      border: 0;
+      border-radius: 12px;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #22d3ee;
+      color: #06202a;
+    }
+
+    #status {
+      margin-top: 18px;
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+
+    /* Hide A-Frame's standard XR button because we use our own. */
+    .a-enter-vr,
+    .a-enter-ar {
+      display: none !important;
+    }
+  </style>
+
+
+  <script>
+    /*
+    ============================================================
+    BEGINNER SETTINGS
+    ============================================================
+    These are the main values learners can safely change.
+    */
+
+    // CHANGE GAME DURATION HERE
+    const GAME_DURATION = 60;
+
+    // CHANGE NUMBER OF TARGETS HERE
+    const NUMBER_OF_TARGETS = 4;
+
+    // CHANGE TARGET SIZE HERE
+    const TARGET_SIZE = 0.38;
+
+    // CHANGE TARGET COLOUR HERE
+    const TARGET_COLOURS = [
+      "#FF4D6D",
+      "#FFD60A",
+      "#2EC4B6",
+      "#7B61FF",
+      "#FF8C42"
+    ];
+
+    /*
+    Targets appear between approximately 2 and 5 metres away.
+    X controls left/right.
+    Y controls height.
+    Z controls distance.
+    */
+    const TARGET_AREA = {
+      minX: -1.6,
+      maxX:  1.6,
+
+      minY:  0.9,
+      maxY:  2.2,
+
+      minDistance: 2.0,
+      maxDistance: 5.0
+    };
+
+
+    /*
+    ============================================================
+    SIMPLE SOUND GENERATOR
+    ============================================================
+    No MP3 or WAV files are required.
+
+    The browser creates the sounds itself using Web Audio.
+    */
+
+    const gameSounds = {
+      audioContext: null,
+
+      initialise: function () {
+        if (!this.audioContext) {
+          this.audioContext =
+            new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        if (this.audioContext.state === "suspended") {
+          this.audioContext.resume();
+        }
+      },
+
+      shoot: function () {
+        this.initialise();
+
+        // CHANGE SHOOTING SOUND HERE
+        // Try changing 220 to another frequency.
+        this.playTone(220, 0.055, "square", 0.045);
+      },
+
+      hit: function () {
+        this.initialise();
+
+        // CHANGE TARGET HIT SOUND HERE
+        // Try changing 700 or 1050.
+        this.playTone(700, 0.06, "sine", 0.07);
+
+        setTimeout(() => {
+          this.playTone(1050, 0.08, "sine", 0.05);
+        }, 45);
+      },
+
+      playTone: function (frequency, duration, waveType, volume) {
+        const ctx = this.audioContext;
+
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        oscillator.type = waveType;
+        oscillator.frequency.value = frequency;
+
+        gain.gain.setValueAtTime(volume, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(
+          0.001,
+          ctx.currentTime + duration
+        );
+
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+
+        oscillator.start();
+        oscillator.stop(ctx.currentTime + duration);
+      }
+    };
+
+
+    /*
+    ============================================================
+    TARGET COMPONENT
+    ============================================================
+
+    Every target gets this component.
+
+    When it is hit:
+    1. It flashes.
+    2. It grows slightly.
+    3. The score increases.
+    4. It moves to another location.
+    */
+
+    AFRAME.registerComponent("shooting-target", {
+      init: function () {
+        this.busy = false;
+        this.originalColour =
+          this.el.getAttribute("material").color;
+      },
+
+      hit: function () {
+        if (this.busy) return;
+
+        const game =
+          document.querySelector("#gameManager")
+            .components["game-manager"];
+
+        if (!game || !game.gameRunning) return;
+
+        this.busy = true;
+
+        game.targetHit();
+
+        const target = this.el;
+
+        /*
+        --------------------------------------------------------
+        SIMPLE VISUAL HIT EFFECT
+        --------------------------------------------------------
+        No flashing animation is used.
+        It only briefly becomes white and slightly larger.
+        */
+
+        target.setAttribute(
+          "material",
+          "color",
+          "#FFFFFF"
+        );
+
+        target.setAttribute(
+          "scale",
+          "1.25 1.25 1.25"
+        );
+
+        setTimeout(() => {
+
+          target.setAttribute(
+            "material",
+            "color",
+            this.originalColour
+          );
+
+          target.setAttribute(
+            "scale",
+            "1 1 1"
+          );
+
+          game.moveTarget(target);
+
+          this.busy = false;
+
+        }, 130);
+      }
+    });
+
+
+    /*
+    ============================================================
+    RIGHT CONTROLLER / SHOOTER
+    ============================================================
+
+    Meta Quest Touch controller events include:
+
+    triggerdown
+    triggerup
+    abuttondown
+    bbuttondown
+
+    We use triggerdown for shooting.
+    We use the A button to restart after Game Over.
+    */
+
+    AFRAME.registerComponent("xr-shooter", {
+      init: function () {
+        const controller = this.el;
+
+        controller.addEventListener(
+          "triggerdown",
+          () => {
+            this.shoot();
+          }
+        );
+
+        controller.addEventListener(
+          "abuttondown",
+          () => {
+            const game =
+              document.querySelector("#gameManager")
+                .components["game-manager"];
+
+            if (game && !game.gameRunning) {
+              game.startGame();
+            }
+          }
+        );
+      },
+
+      shoot: function () {
+        const game =
+          document.querySelector("#gameManager")
+            .components["game-manager"];
+
+        if (!game || !game.gameRunning) return;
+
+        gameSounds.shoot();
+
+
+        /*
+        ========================================================
+        RAYCASTING
+        ========================================================
+
+        The raycaster creates an invisible mathematical line
+        extending forward from the right controller.
+
+        The visible cyan laser shows the same direction.
+        */
+
+        const raycaster =
+          this.el.components.raycaster;
+
+        if (!raycaster) return;
+
+
+        /*
+        intersectedEls contains objects currently touched
+        by the controller ray.
+
+        We only raycast against objects with class="target".
+        */
+
+        const hitObjects =
+          raycaster.intersectedEls;
+
+        if (!hitObjects ||
+            hitObjects.length === 0) {
+          return;
+        }
+
+
+        /*
+        Use the first target hit by the ray.
+        */
+
+        const target = hitObjects[0];
+
+        const targetComponent =
+          target.components["shooting-target"];
+
+        if (targetComponent) {
+          targetComponent.hit();
+        }
+      }
+    });
+
+
+    /*
+    ============================================================
+    MAIN GAME MANAGER
+    ============================================================
+    */
+
+    AFRAME.registerComponent("game-manager", {
+      init: function () {
+        this.score = 0;
+        this.timeLeft = GAME_DURATION;
+        this.gameRunning = false;
+        this.timerInterval = null;
+
+        this.scoreText =
+          document.querySelector("#scoreText");
+
+        this.timerText =
+          document.querySelector("#timerText");
+
+        this.gameOverPanel =
+          document.querySelector("#gameOverPanel");
+
+        this.gameOverScore =
+          document.querySelector("#gameOverScore");
+
+        this.targets =
+          document.querySelector("#targets");
+
+
+        /*
+        Create all targets automatically.
+        */
+
+        this.createTargets();
+
+
+        /*
+        Start the game whenever XR mode begins.
+        */
+
+        const scene =
+          document.querySelector("a-scene");
+
+        scene.addEventListener(
+          "enter-vr",
+          () => {
+            setTimeout(() => {
+              this.startGame();
+            }, 300);
+          }
+        );
+      },
+
+
+      createTargets: function () {
+
+        this.targets.innerHTML = "";
+
+        for (
+          let i = 0;
+          i < NUMBER_OF_TARGETS;
+          i++
+        ) {
+
+          const target =
+            document.createElement("a-circle");
+
+          target.classList.add("target");
+
+          target.setAttribute(
+            "radius",
+            TARGET_SIZE
+          );
+
+          const colour =
+            TARGET_COLOURS[
+              i % TARGET_COLOURS.length
+            ];
+
+          target.setAttribute(
+            "material",
+            `
+              color: ${colour};
+              shader: flat;
+              side: double
+            `
+          );
+
+          /*
+          Add a dark ring behind the target.
+          */
+
+          const ring =
+            document.createElement("a-ring");
+
+          ring.setAttribute(
+            "radius-inner",
+            TARGET_SIZE * 0.72
+          );
+
+          ring.setAttribute(
+            "radius-outer",
+            TARGET_SIZE * 0.82
+          );
+
+          ring.setAttribute(
+            "position",
+            "0 0 0.002"
+          );
+
+          ring.setAttribute(
+            "material",
+            `
+              color: #202020;
+              shader: flat;
+              side: double
+            `
+          );
+
+          target.appendChild(ring);
+
+          /*
+          Add a small centre circle.
+          */
+
+          const centre =
+            document.createElement("a-circle");
+
+          centre.setAttribute(
+            "radius",
+            TARGET_SIZE * 0.22
+          );
+
+          centre.setAttribute(
+            "position",
+            "0 0 0.004"
+          );
+
+          centre.setAttribute(
+            "material",
+            `
+              color: #FFFFFF;
+              shader: flat;
+              side: double
+            `
+          );
+
+          target.appendChild(centre);
+
+          target.setAttribute(
+            "shooting-target",
+            ""
+          );
+
+          this.targets.appendChild(target);
+
+          this.moveTarget(target);
+        }
+      },
+
+
+      startGame: function () {
+
+        clearInterval(this.timerInterval);
+
+        this.score = 0;
+        this.timeLeft = GAME_DURATION;
+        this.gameRunning = true;
+
+        this.gameOverPanel.setAttribute(
+          "visible",
+          false
+        );
+
+        this.targets.setAttribute(
+          "visible",
+          true
+        );
+
+        this.updateDisplay();
+
+
+        /*
+        Give every target a new starting location.
+        */
+
+        const allTargets =
+          document.querySelectorAll(".target");
+
+        allTargets.forEach(target => {
+          this.moveTarget(target);
+        });
+
+
+        /*
+        Countdown timer.
+        */
+
+        this.timerInterval =
+          setInterval(() => {
+
+            this.timeLeft--;
+
+            if (this.timeLeft <= 0) {
+              this.timeLeft = 0;
+              this.endGame();
+            }
+
+            this.updateDisplay();
+
+          }, 1000);
+      },
+
+
+      targetHit: function () {
+
+        if (!this.gameRunning) return;
+
+        this.score++;
+
+        gameSounds.hit();
+
+        this.updateDisplay();
+      },
+
+
+      moveTarget: function (target) {
+
+        /*
+        ========================================================
+        RANDOM TARGET POSITION
+        ========================================================
+
+        The target stays:
+        - in front of the user
+        - approximately 2 to 5 metres away
+        - within a limited left/right area
+        - within a comfortable vertical area
+        */
+
+        const x =
+          this.random(
+            TARGET_AREA.minX,
+            TARGET_AREA.maxX
+          );
+
+        const y =
+          this.random(
+            TARGET_AREA.minY,
+            TARGET_AREA.maxY
+          );
+
+        const distance =
+          this.random(
+            TARGET_AREA.minDistance,
+            TARGET_AREA.maxDistance
+          );
+
+        const z = -distance;
+
+        target.setAttribute(
+          "position",
+          `${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`
+        );
+      },
+
+
+      random: function (min, max) {
+        return (
+          Math.random() * (max - min) + min
+        );
+      },
+
+
+      updateDisplay: function () {
+
+        this.scoreText.setAttribute(
+          "value",
+          `Score: ${this.score}`
+        );
+
+        this.timerText.setAttribute(
+          "value",
+          `Time: ${this.timeLeft}`
+        );
+      },
+
+
+      endGame: function () {
+
+        this.gameRunning = false;
+
+        clearInterval(this.timerInterval);
+
+        this.targets.setAttribute(
+          "visible",
+          false
+        );
+
+        this.gameOverScore.setAttribute(
+          "value",
+          `Your Score: ${this.score}`
+        );
+
+        this.gameOverPanel.setAttribute(
+          "visible",
+          true
+        );
+      }
+    });
+
+
+    /*
+    ============================================================
+    WEB PAGE START BUTTON
+    ============================================================
+    */
+
+    window.addEventListener(
+      "DOMContentLoaded",
+      () => {
+
+        const startButton =
+          document.querySelector("#enterXRButton");
+
+        const status =
+          document.querySelector("#status");
+
+        const startScreen =
+          document.querySelector("#startScreen");
+
+        const scene =
+          document.querySelector("a-scene");
+
+
+        /*
+        Check whether WebXR is available.
+        */
+
+        if (
+          !navigator.xr ||
+          !window.isSecureContext
+        ) {
+
+          status.textContent =
+            "WebXR requires a supported browser and HTTPS.";
+
+        }
+
+
+        startButton.addEventListener(
+          "click",
+          async () => {
+
+            /*
+            Initialise audio while we are responding
+            to a user button press.
+            */
+
+            gameSounds.initialise();
+
+
+            if (!navigator.xr) {
+
+              status.textContent =
+                "WebXR is not available in this browser.";
+
+              return;
+            }
+
+
+            try {
+
+              /*
+              Check for Mixed Reality / AR support.
+              */
+
+              const supported =
+                await navigator.xr
+                  .isSessionSupported(
+                    "immersive-ar"
+                  );
+
+              if (!supported) {
+
+                status.textContent =
+                  "Immersive AR is not available on this device.";
+
+                return;
+              }
+
+
+              status.textContent =
+                "Entering XR...";
+
+
+              /*
+              A-Frame's enterAR() requests an
+              immersive-ar WebXR session.
+
+              On Meta Quest this allows passthrough
+              mixed reality where supported.
+              */
+
+              scene.enterAR();
+
+              /*
+              Hide normal browser start screen.
+              */
+
+              startScreen.style.display =
+                "none";
+
+            }
+            catch (error) {
+
+              console.error(error);
+
+              status.textContent =
+                "Could not start XR. Make sure the page is opened using HTTPS.";
+            }
+          }
+        );
+      }
+    );
+  </script>
+</head>
+
+
+<body>
+
+  <!-- =======================================================
+       NORMAL BROWSER START SCREEN
+       ======================================================= -->
+
+  <div id="startScreen">
+
+    <div id="startCard">
+
+      <h1>XR Target Shooting</h1>
+
+      <p>
+        Put on your headset, enter XR mode,
+        aim at the targets and pull the trigger
+        to shoot.
+      </p>
+
+      <button id="enterXRButton">
+        Enter XR
+      </button>
+
+      <div id="status">
+        Best experienced using Meta Quest Browser.
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =======================================================
+       A-FRAME / WEBXR SCENE
+       ======================================================= -->
+
+  <a-scene
+    xr-mode-ui="XRMode: ar"
+    renderer="
+      alpha: true;
+      colorManagement: true;
+      antialias: true
+    "
+    background="transparent: true"
+    webxr="
+      referenceSpaceType: local-floor;
+      optionalFeatures: local-floor
+    "
+  >
+
+
+    <!-- =====================================================
+         GAME MANAGER
+         ===================================================== -->
+
+    <a-entity
+      id="gameManager"
+      game-manager
+    ></a-entity>
+
+
+    <!-- =====================================================
+         CAMERA / PLAYER
+         =====================================================
+
+         No artificial movement is added.
+
+         The learner simply remains standing or seated
+         in the same physical position.
+         ===================================================== -->
+
+    <a-entity id="player">
+
+      <a-camera
+        id="camera"
+        wasd-controls-enabled="false"
+      ></a-camera>
+
+    </a-entity>
+
+
+    <!-- =====================================================
+         META QUEST LEFT CONTROLLER
+         =====================================================
+
+         This controller is displayed but does not shoot.
+         ===================================================== -->
+
+    <a-entity
+      id="leftController"
+      meta-touch-controls="hand: left"
+    ></a-entity>
+
+
+    <!-- =====================================================
+         META QUEST RIGHT CONTROLLER
+         =====================================================
+
+         This is the shooting controller.
+
+         The raycaster only checks objects whose
+         class is "target".
+
+         far: 6 means the ray can detect objects
+         up to 6 metres away.
+
+         showLine makes the aiming laser visible.
+         ===================================================== -->
+
+    <a-entity
+      id="rightController"
+
+      meta-touch-controls="hand: right"
+
+      raycaster="
+        objects: .target;
+        far: 6;
+        showLine: true;
+        lineColor: #00E5FF;
+        lineOpacity: 0.9
+      "
+
+      xr-shooter
+    ></a-entity>
+
+
+    <!-- =====================================================
+         FLOATING SCORE AND TIMER
+         ===================================================== -->
+
+    <a-entity
+      id="scoreBoard"
+      position="0 2.35 -2.2"
+    >
+
+      <a-plane
+        width="1.9"
+        height="0.55"
+        color="#111827"
+        opacity="0.82"
+      ></a-plane>
+
+      <a-text
+        id="scoreText"
+        value="Score: 0"
+        position="-0.75 0.08 0.01"
+        width="2.5"
+        color="#FFFFFF"
+      ></a-text>
+
+      <a-text
+        id="timerText"
+        value="Time: 60"
+        position="0.18 0.08 0.01"
+        width="2.5"
+        color="#FFD60A"
+      ></a-text>
+
+    </a-entity>
+
+
+    <!-- =====================================================
+         TARGET CONTAINER
+         ===================================================== -->
+
+    <a-entity id="targets"></a-entity>
+
+
+    <!-- =====================================================
+         GAME OVER DISPLAY
+         ===================================================== -->
+
+    <a-entity
+      id="gameOverPanel"
+      position="0 1.55 -2"
+      visible="false"
+    >
+
+      <a-plane
+        width="2.4"
+        height="1.45"
+        color="#101827"
+        opacity="0.93"
+      ></a-plane>
+
+      <a-text
+        value="GAME OVER"
+        align="center"
+        position="0 0.38 0.01"
+        width="4"
+        color="#FFD60A"
+      ></a-text>
+
+      <a-text
+        id="gameOverScore"
+        value="Your Score: 0"
+        align="center"
+        position="0 0.02 0.01"
+        width="3.5"
+        color="#FFFFFF"
+      ></a-text>
+
+      <a-text
+        value="Press the A button to restart"
+        align="center"
+        position="0 -0.38 0.01"
+        width="2.8"
+        color="#A5F3FC"
+      ></a-text>
+
+    </a-entity>
+
+
+  </a-scene>
+
+</body>
+</html>
