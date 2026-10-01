@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCDF Safety Quiz WebXR & Desktop Game</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- A-Frame 1.8.0 CDN -->
+    <script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            color: #e2e8f0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .neon-border {
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.3), inset 0 0 10px rgba(34, 211, 238, 0.2);
+            border: 1px solid rgba(34, 211, 238, 0.6);
+        }
+
+        .neon-glow-red {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .neon-glow-green {
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+        }
+
+        .desktop-target {
+            transition: border-color 0.15s ease, transform 0.1s ease;
+            touch-action: manipulation;
+        }
+
+        .desktop-target:hover {
+            transform: scale(1.03);
+            border-color: #22d3ee !important;
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.5);
+        }
+
+        /* Hide A-Frame default UI buttons so we use our custom menu */
+        .a-enter-vr {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen relative bg-slate-950 text-slate-100 flex flex-col justify-between overflow-hidden">
+
+    
+    <!-- START / LAUNCH SCREEN -->
+    <div id="start-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-md p-6 text-center">
+        <div class="max-w-xl w-full bg-slate-900/90 rounded-2xl p-8 border border-slate-800 shadow-2xl relative">
+            <div class="w-16 h-16 bg-cyan-500/10 border border-cyan-400/30 rounded-2xl mx-auto mb-4 flex items-center justify-center text-cyan-400">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">
+                SCDF Safety Challenge
+            </h1>
+            <p class="text-slate-400 text-sm sm:text-base mb-6">
+                Test your fire safety instincts! Answer moving targets before they drop into the danger zone.
+            </p>
+
+            <div class="space-y-3 w-full">
+                <button id="btn-enter-xr" class="hidden w-full py-4 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black tracking-wide rounded-xl shadow-lg transition-all duration-200 transform active:scale-95 flex items-center justify-center gap-3">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H7v-2h4v2zm7 0h-4v-2h4v2z"/></svg>
+                    ENTER MIXED REALITY (META QUEST)
+                </button>
+
+                <button id="btn-play-desktop" class="w-full py-4 px-6 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 font-bold rounded-xl shadow-md transition-all duration-200 transform active:scale-95 flex items-center justify-center gap-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    PLAY DESKTOP VERSION
+                </button>
+            </div>
+
+            <div id="xr-status-tag" class="mt-4 text-xs text-slate-500">
+                Checking WebXR Passthrough capability...
+            </div>
+        </div>
+    </div>
+
+    <!-- DESKTOP GAME CANVAS / HUD LAYER -->
+    <div id="desktop-game-ui" class="hidden relative w-full h-full flex flex-col justify-between p-4 sm:p-6 z-10 pointer-events-none">
+        <!-- Top HUD -->
+        <div class="flex justify-between items-center bg-slate-900/80 backdrop-blur border border-slate-800 rounded-2xl p-4 shadow-xl pointer-events-auto">
+            <div class="flex items-center space-x-6">
+                <div>
+                    <span class="text-xs uppercase tracking-wider text-slate-400 block font-semibold">Score</span>
+                    <span id="hud-score" class="text-2xl sm:text-3xl font-black text-cyan-400">0</span>
+                </div>
+                <div>
+                    <span class="text-xs uppercase tracking-wider text-slate-400 block font-semibold">Time Remaining</span>
+                    <span id="hud-timer" class="text-2xl sm:text-3xl font-black text-amber-400">60s</span>
+                </div>
+            </div>
+            
+            <button id="btn-stop-desktop" class="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/40 font-semibold rounded-lg transition-colors pointer-events-auto">
+                STOP GAME
+            </button>
+        </div>
+
+        <!-- Desktop Question Banner -->
+        <div id="desktop-question-card" class="self-center w-full max-w-2xl bg-slate-900/90 border border-cyan-500/40 rounded-xl p-4 sm:p-6 text-center shadow-2xl pointer-events-auto my-2">
+            <span id="desktop-q-counter" class="text-xs font-bold text-cyan-400 tracking-widest uppercase">Question 1 of 6</span>
+            <h2 id="desktop-q-text" class="text-lg sm:text-xl font-bold text-slate-100 mt-1">Loading safety question...</h2>
+            <div id="desktop-feedback" class="h-6 mt-2 text-sm font-bold"></div>
+        </div>
+
+        <!-- Playfield Area for desktop targets -->
+        <div id="desktop-playfield" class="relative w-full flex-grow overflow-hidden border-b-2 border-dashed border-rose-500/30">
+            <!-- Danger Zone Indicator -->
+            <div class="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-rose-950/40 to-transparent flex items-center justify-center text-rose-500/60 text-xs font-bold uppercase tracking-widest">
+                DANGER ZONE
+            </div>
+        </div>
+    </div>
+
+    <!-- END GAME OVERLAY -->
+    <div id="end-screen" class="hidden absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-lg p-6 text-center">
+        <div class="max-w-md w-full bg-slate-900 rounded-2xl p-8 border border-slate-800 shadow-2xl">
+            <div class="w-16 h-16 bg-green-500/10 border border-green-500/30 rounded-2xl mx-auto mb-4 flex items-center justify-center text-green-400">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <h2 class="text-3xl font-extrabold text-slate-100 mb-2">Challenge Complete</h2>
+            
+            <div class="my-6 space-y-3 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                <div class="flex justify-between items-center text-slate-300">
+                    <span>Final Score:</span>
+                    <span id="final-score" class="text-2xl font-black text-cyan-400">0</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-300">
+                    <span>Time Taken:</span>
+                    <span id="final-time" class="text-2xl font-black text-amber-400">0 seconds</span>
+                </div>
+            </div>
+
+            <button id="btn-restart" class="w-full py-4 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black rounded-xl shadow-lg transition-all transform active:scale-95">
+                PLAY AGAIN
+            </button>
+        </div>
+    </div>
+
+    <!-- A-FRAME 3D / XR SCENE -->
+    <a-scene embedded class="absolute inset-0 w-full h-full z-0" vr-mode-ui="enabled: false">
+        
+        <!-- Preload GLB Assets -->
+        <a-assets timeout="3000">
+            <!-- CHANGE 3D MODEL FILES HERE -->
+            <a-asset-item id="extinguisher-glb" src="assets/fire-extinguisher.glb"></a-asset-item>
+            <a-asset-item id="helmet-glb" src="assets/helmet.glb"></a-asset-item>
+            <a-asset-item id="cone-glb" src="assets/safety-cone.glb"></a-asset-item>
+        </a-assets>
+
+        <!-- Lighting for GLBs and XR space -->
+        <a-light type="ambient" color="#FFFFFF" intensity="0.9"></a-light>
+        <a-light type="directional" position="1 3 2" color="#FFFFFF" intensity="0.8"></a-light>
+        <a-light type="directional" position="-2 2 -1" color="#88CCFF" intensity="0.5"></a-light>
+
+        <!-- Camera & Controller Rig -->
+        <a-entity id="rig" position="0 0 0">
+            <a-camera id="main-camera" position="0 1.6 0" look-controls="enabled: true"></a-camera>
+            
+            <!-- Right Quest Touch Controller with Cyan Raycaster -->
+            <!-- CHANGE XR AIM ASSIST HERE -->
+            <a-entity id="right-hand" 
+                      meta-touch-controls="hand: right" 
+                      laser-controls="hand: right"
+                      raycaster="objects: .shootable; far: 8; showLine: true; lineColor: #22D3EE; interval: 50;"
+                      xr-controller-handler>
+            </a-entity>
+        </a-entity>
+
+        <!-- XR Floating HUD (Follows near top of player view or anchored ahead) -->
+        <a-entity id="xr-hud" position="0 2.2 -1.8">
+            <!-- HUD Panel Background -->
+            <a-plane width="1.6" height="0.4" color="#0F172A" opacity="0.85" material="shader: flat; transparent: true;"></a-plane>
+            
+            <!-- Question Text in XR -->
+            <a-text id="xr-q-text" value="Welcome to Safety Quiz" align="center" position="0 0.08 0.01" width="1.8" color="#38BDF8" font="roboto"></a-text>
+            <a-text id="xr-hud-stats" value="Score: 0 | Time: 60s" align="center" position="0 -0.10 0.01" width="1.5" color="#FCB316" font="roboto"></a-text>
+
+            <!-- XR Control Buttons -->
+            <a-entity position="-0.45 -0.28 0.01">
+                <a-plane class="shootable" id="btn-xr-stop" width="0.32" height="0.10" color="#EF4444" material="shader: flat;"></a-plane>
+                <a-text value="STOP GAME" align="center" position="0 0 0.01" width="1.2" color="#FFFFFF"></a-text>
+            </a-entity>
+
+            <a-entity position="0.45 -0.28 0.01">
+                <a-plane class="shootable" id="btn-xr-exit" width="0.32" height="0.10" color="#64748B" material="shader: flat;"></a-plane>
+                <a-text value="EXIT XR" align="center" position="0 0 0.01" width="1.2" color="#FFFFFF"></a-text>
+            </a-entity>
+        </a-entity>
+
+        <!-- Container for dynamically spawned XR answers -->
+        <a-entity id="xr-target-container"></a-entity>
+
+        <!-- Container for XR Explosion visual feedback -->
+        <a-entity id="xr-explosion-container"></a-entity>
+    </a-scene>
+
+    <script>
+        /************************************************************************
+         * CONFIGURABLE CONSTANTS
+         ************************************************************************/
+        // CHANGE GAME DURATION HERE
+        const GAME_DURATION_SECONDS = 60;
+
+        // CHANGE POINTS HERE
+        const POINTS_CORRECT = 10;
+        const POINTS_WRONG = -5;
+        const POINTS_TIMEOUT = -5;
+
+        // CHANGE TARGET SIZE HERE
+        const XR_VISIBLE_WIDTH = 0.40;
+        const XR_VISIBLE_HEIGHT = 0.18;
+        const XR_HITBOX_WIDTH = 0.54;
+        const XR_HITBOX_HEIGHT = 0.30;
+        const XR_HITBOX_DEPTH = 0.18;
+
+        // CHANGE FALL SPEED HERE
+        const MIN_DURATION_SEC = 4.5;
+        const MAX_DURATION_SEC = 8.0;
+
+        // CHANGE RANDOM DROP DELAY HERE
+        const MIN_DELAY_SEC = 0.0;
+        const MAX_DELAY_SEC = 1.8;
+
+        // CHANGE TARGET COLOUR HERE
+        const COLOR_NORMAL = "#1E293B"; // Dark slate
+        const COLOR_HIGHLIGHT = "#22D3EE"; // Cyan glow border
+        const COLOR_TEXT = "#F8FAFC";
+
+        // CHANGE 3D MODEL FILES HERE
+        const MODEL_FILES = {
+            extinguisher: "assets/fire-extinguisher.glb",
+            helmet: "assets/helmet.glb",
+            cone: "assets/safety-cone.glb"
+        };
+
+        // QUIZ CONTENT
+        const QUIZ_QUESTIONS = [
+            {
+                id: 1,
+                question: "A fire is too large to put out safely. What should you do?",
+                answers: [
+                    { text: "Alert others, call 995 & activate alarm", correct: true, icon: "alarm" },
+                    { text: "Hide under a wet blanket nearby", correct: false, icon: "chair" },
+                    { text: "Try to splash drinking water on it", correct: false, icon: "water" }
+                ],
+                explanation: "Always evacuate immediately and dial 995!"
+            },
+            {
+                id: 2,
+                question: "During a fire evacuation, which route should you use?",
+                answers: [
+                    { text: "Exit stairs", correct: true, icon: "stairs" },
+                    { text: "Passenger elevator", correct: false, icon: "boxes" },
+                    { text: "Rooftop garden", correct: false, icon: "chair" }
+                ],
+                explanation: "Never use elevators during a fire evacuation."
+            },
+            {
+                id: 3,
+                question: "Which number should you call to inform SCDF of a fire?",
+                answers: [
+                    { text: "995", correct: true, icon: "telephone" },
+                    { text: "999", correct: false, icon: "telephone" },
+                    { text: "911", correct: false, icon: "telephone" }
+                ],
+                explanation: "995 is SCDF's emergency hotline in Singapore."
+            },
+            {
+                id: 4,
+                question: "Which should you NEVER use on burning electrical equipment?",
+                answers: [
+                    { text: "Water", correct: true, icon: "water" },
+                    { text: "CO2 Fire Extinguisher", correct: false, icon: "extinguisher" },
+                    { text: "Fire Blanket", correct: false, icon: "chair" }
+                ],
+                explanation: "Water conducts electricity and can cause severe shock!"
+            },
+            {
+                id: 5,
+                question: "Spot the fire-safety problem in a corridor:",
+                answers: [
+                    { text: "Boxes blocking the exit route", correct: true, icon: "boxes" },
+                    { text: "Clear illuminated exit sign", correct: false, icon: "alarm" },
+                    { text: "Closed fire door", correct: false, icon: "stairs" }
+                ],
+                explanation: "Keep passageways unobstructed at all times."
+            },
+            {
+                id: 6,
+                isGLB: true,
+                question: "Choose the 3D model that represents fire-fighting equipment:",
+                answers: [
+                    { text: "Fire Extinguisher", modelKey: "extinguisher", correct: true },
+                    { text: "Safety Helmet", modelKey: "helmet", correct: false },
+                    { text: "Traffic Cone", modelKey: "cone", correct: false }
+                ],
+                explanation: "Fire extinguishers are vital first-line fire equipment."
+            }
+        ];
+
+        /************************************************************************
+         * WEB AUDIO SYNTHESIZER
+         ************************************************************************/
+        // CHANGE SHOOTING SOUND HERE
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playShot() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playCorrect() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(now + 0.4);
+            }
+
+            playWrong() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.setValueAtTime(164.81, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(now + 0.35);
+            }
+
+            playExplosion() {
+                this.init();
+                const now = this.ctx.currentTime;
+                
+                // Noise buffer for explosion
+                const bufferSize = this.ctx.sampleRate * 0.4;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, now);
+                filter.frequency.linearRampToValueAtTime(50, now + 0.4);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start(now);
+                noise.stop(now + 0.4);
+            }
+        }
+
+        const audio = new SoundFX();
+
+        /************************************************************************
+         * GLOBAL GAME STATE & HELPERS
+         ************************************************************************/
+        let isXRMode = false;
+        let activeQuestions = [];
+        let currentQIndex = 0;
+        let score = 0;
+        let gameStartTime = 0;
+        let gameTimerInterval = null;
+        let activeAnswerAnimators = []; // Tracks timers/intervals for active answers
+        let questionAnswered = false;
+        let currentXRHighlight = null; // Single XR target highlight reference
+
+        // Utilities
+        function randomBetween(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        // Fisher-Yates Shuffle
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        /************************************************************************
+         * WEBXR / CONTROLLER / RAYCAST COMPONENTS
+         ************************************************************************/
+        AFRAME.registerComponent('xr-controller-handler', {
+            init: function () {
+                const el = this.el;
+
+                el.addEventListener('triggerdown', () => {
+                    audio.playShot();
+                    if (!isXRMode || questionAnswered) return;
+
+                    const raycaster = el.components.raycaster;
+                    if (!raycaster) return;
+
+                    const intersections = raycaster.getIntersection(raycaster.objects);
+                    if (intersections && intersections.length > 0) {
+                        const hitEntity = intersections[0].object.el;
+                        if (!hitEntity) return;
+
+                        // Check XR UI buttons
+                        if (hitEntity.id === 'btn-xr-stop') {
+                            endGame();
+                            return;
+                        }
+                        if (hitEntity.id === 'btn-xr-exit') {
+                            exitXR();
+                            return;
+                        }
+
+                        // Check answer hitboxes
+                        const answerHolder = hitEntity.closest('.xr-answer-holder');
+                        if (answerHolder && !answerHolder.dataset.disabled) {
+                            const isCorrect = answerHolder.dataset.correct === "true";
+                            handleAnswerSelection(isCorrect, answerHolder);
+                        }
+                    }
+                });
+
+                el.addEventListener('raycaster-intersection', (evt) => {
+                    if (questionAnswered) return;
+                    for (let target of evt.detail.els) {
+                        const answerHolder = target.closest('.xr-answer-holder');
+                        if (answerHolder && !answerHolder.dataset.disabled) {
+                            highlightXRAnswer(answerHolder);
+                            break;
+                        }
+                    }
+                });
+
+                el.addEventListener('raycaster-intersection-cleared', (evt) => {
+                    for (let target of evt.detail.clearedEls) {
+                        const answerHolder = target.closest('.xr-answer-holder');
+                        if (answerHolder && currentXRHighlight === answerHolder) {
+                            removeXRHighlight();
+                        }
+                    }
+                });
+            }
+        });
+
+        function highlightXRAnswer(holder) {
+            if (currentXRHighlight && currentXRHighlight !== holder) {
+                removeXRHighlight();
+            }
+            currentXRHighlight = holder;
+            const outline = holder.querySelector('.visible-outline');
+            if (outline) {
+                outline.setAttribute('material', 'color', COLOR_HIGHLIGHT);
+                outline.setAttribute('visible', 'true');
+            }
+        }
+
+        function removeXRHighlight() {
+            if (currentXRHighlight) {
+                const outline = currentXRHighlight.querySelector('.visible-outline');
+                if (outline) {
+                    outline.setAttribute('visible', 'false');
+                }
+                currentXRHighlight = null;
+            }
+        }
+
+        /************************************************************************
+         * PROCEDURAL GEOMETRY ICONS (FOR XR NON-GLB QUESTIONS)
+         ************************************************************************/
+        function attachProceduralIcon(parentEl, iconType) {
+            const container = document.createElement('a-entity');
+            container.setAttribute('position', '0 0.12 0.02');
+            container.setAttribute('scale', '0.6 0.6 0.6');
+
+            switch (iconType) {
+                case 'alarm':
+                    container.innerHTML = `
+                        <a-box width="0.15" height="0.15" depth="0.05" color="#EF4444"></a-box>
+                        <a-sphere radius="0.04" position="0 0 0.03" color="#FACC15"></a-sphere>
+                    `;
+                    break;
+                case 'water':
+                    container.innerHTML = `
+                        <a-sphere radius="0.08" color="#3B82F6" scale="0.8 1.2 0.8"></a-sphere>
+                    `;
+                    break;
+                case 'stairs':
+                    container.innerHTML = `
+                        <a-box width="0.05" height="0.04" depth="0.05" position="-0.08 -0.06 0" color="#94A3B8"></a-box>
+                        <a-box width="0.05" height="0.08" depth="0.05" position="-0.03 -0.04 0" color="#94A3B8"></a-box>
+                        <a-box width="0.05" height="0.12" depth="0.05" position="0.02 -0.02 0" color="#94A3B8"></a-box>
+                        <a-box width="0.05" height="0.16" depth="0.05" position="0.07 0 0" color="#94A3B8"></a-box>
+                    `;
+                    break;
+                case 'boxes':
+                    container.innerHTML = `
+                        <a-box width="0.1" height="0.1" depth="0.1" position="-0.04 -0.02 0" color="#D97706"></a-box>
+                        <a-box width="0.08" height="0.08" depth="0.08" position="0.04 -0.03 0.02" color="#B45309"></a-box>
+                    `;
+                    break;
+                case 'telephone':
+                    container.innerHTML = `
+                        <a-box width="0.16" height="0.08" depth="0.05" color="#0284C7"></a-box>
+                        <a-cylinder radius="0.03" height="0.18" rotation="0 0 90" position="0 0.05 0" color="#38BDF8"></a-cylinder>
+                    `;
+                    break;
+                case 'chair':
+                default:
+                    container.innerHTML = `
+                        <a-box width="0.1" height="0.02" depth="0.1" position="0 0 0" color="#64748B"></a-box>
+                        <a-box width="0.1" height="0.12" depth="0.02" position="0 0.06 -0.04" color="#64748B"></a-box>
+                        <a-box width="0.02" height="0.08" depth="0.02" position="-0.04 -0.04 -0.04" color="#475569"></a-box>
+                        <a-box width="0.02" height="0.08" depth="0.02" position="0.04 -0.04 -0.04" color="#475569"></a-box>
+                    `;
+                    break;
+            }
+            parentEl.appendChild(container);
+        }
+
+        // Procedural fallbacks if GLB models are missing
+        function createFallbackModel(modelKey) {
+            const holder = document.createElement('a-entity');
+            if (modelKey === 'extinguisher') {
+                holder.innerHTML = `
+                    <a-cylinder radius="0.08" height="0.32" color="#DC2626"></a-cylinder>
+                    <a-cylinder radius="0.03" height="0.08" position="0 0.18 0" color="#1E293B"></a-cylinder>
+                    <a-box width="0.14" height="0.02" depth="0.02" position="0.05 0.2 0" color="#1E293B"></a-box>
+                `;
+            } else if (modelKey === 'helmet') {
+                holder.innerHTML = `
+                    <a-sphere radius="0.14" color="#FACC15" phi-length="180" rotation="-90 0 0"></a-sphere>
+                    <a-cylinder radius="0.16" height="0.02" position="0 -0.02 0" color="#EAB308"></a-cylinder>
+                `;
+            } else { // cone
+                holder.innerHTML = `
+                    <a-cone radius-bottom="0.15" radius-top="0.02" height="0.32" color="#F97316"></a-cone>
+                    <a-box width="0.32" height="0.02" depth="0.32" position="0 -0.15 0" color="#EA580C"></a-box>
+                `;
+            }
+            return holder;
+        }
+
+        /************************************************************************
+         * QUESTION DISPLAY & MOVEMENT ENGINE
+         ************************************************************************/
+        function loadNextQuestion() {
+            clearActiveAnswerAnimators();
+            removeXRHighlight();
+
+            if (currentQIndex >= activeQuestions.length) {
+                endGame();
+                return;
+            }
+
+            questionAnswered = false;
+            const qData = activeQuestions[currentQIndex];
+
+            // Update UI Counters & Banners
+            document.getElementById('desktop-q-counter').innerText = `Question ${currentQIndex + 1} of ${activeQuestions.length}`;
+            document.getElementById('desktop-q-text').innerText = qData.question;
+            document.getElementById('desktop-feedback').innerText = "";
+
+            const xrQText = document.getElementById('xr-q-text');
+            if (xrQText) {
+                xrQText.setAttribute('value', `Q${currentQIndex + 1}: ${qData.question}`);
+            }
+
+            if (isXRMode) {
+                spawnXRAnswers(qData);
+            } else {
+                spawnDesktopAnswers(qData);
+            }
+        }
+
+        function clearActiveAnswerAnimators() {
+            activeAnswerAnimators.forEach(item => {
+                if (item.timer) clearTimeout(item.timer);
+                if (item.frame) cancelAnimationFrame(item.frame);
+            });
+            activeAnswerAnimators = [];
+
+            // Clear 3D container
+            const containerXR = document.getElementById('xr-target-container');
+            if (containerXR) containerXR.innerHTML = '';
+
+            // Clear Desktop Container
+            const playfield = document.getElementById('desktop-playfield');
+            if (playfield) playfield.innerHTML = '<div class="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-rose-950/40 to-transparent flex items-center justify-center text-rose-500/60 text-xs font-bold uppercase tracking-widest">DANGER ZONE</div>';
+        }
+
+        // ==========================================
+        // XR MOVEMENT & SPAWN LOGIC
+        // ==========================================
+        function spawnXRAnswers(qData) {
+            const container = document.getElementById('xr-target-container');
+            
+            // 3 Non-overlapping Spawn Lanes
+            const lanesXR = [
+                [-0.85, -0.40], // Left
+                [-0.20, 0.20],  // Center
+                [0.40, 0.85]    // Right
+            ];
+            const shuffledLanes = shuffleArray(lanesXR);
+            const arrivalTimes = [];
+
+            qData.answers.forEach((ans, idx) => {
+                const assignedLane = shuffledLanes[idx];
+                const startX = randomBetween(assignedLane[0], assignedLane[1]);
+                const startY = randomBetween(1.70, 1.82); // Released just under top HUD
+                const startZ = -1.8;
+
+                const endX = Math.min(1.05, Math.max(-1.05, startX + randomBetween(-0.45, 0.45)));
+                const endY = -0.55; // Danger zone line below view
+                const endZ = startZ + randomBetween(-0.20, 0.15);
+
+                const delay = randomBetween(MIN_DELAY_SEC, MAX_DELAY_SEC);
+                const duration = randomBetween(MIN_DURATION_SEC, MAX_DURATION_SEC);
+                arrivalTimes.push(delay + duration);
+
+                // Build Answer Structure
+                const answerHolder = document.createElement('a-entity');
+                answerHolder.classList.add('xr-answer-holder');
+                answerHolder.setAttribute('position', `${startX} ${startY} ${startZ}`);
+                answerHolder.dataset.correct = ans.correct;
+
+                if (qData.isGLB) {
+                    // GLB 3D Model Question
+                    const glbEntity = document.createElement('a-entity');
+                    glbEntity.setAttribute('gltf-model', `#${ans.modelKey}-glb`);
+                    glbEntity.setAttribute('scale', '0.5 0.5 0.5');
+
+                    // Fallback visual if model missing
+                    glbEntity.addEventListener('model-error', () => {
+                        glbEntity.parentNode.replaceChild(createFallbackModel(ans.modelKey), glbEntity);
+                    });
+
+                    answerHolder.appendChild(glbEntity);
+                } else {
+                    // Standard Visual Card
+                    const visibleCard = document.createElement('a-plane');
+                    visibleCard.setAttribute('width', XR_VISIBLE_WIDTH);
+                    visibleCard.setAttribute('height', XR_VISIBLE_HEIGHT);
+                    visibleCard.setAttribute('color', COLOR_NORMAL);
+                    visibleCard.setAttribute('material', 'shader: flat; transparent: true; opacity: 0.9;');
+
+                    const textEl = document.createElement('a-text');
+                    textEl.setAttribute('value', ans.text);
+                    textEl.setAttribute('align', 'center');
+                    textEl.setAttribute('width', '0.8');
+                    textEl.setAttribute('wrap-count', '20');
+                    textEl.setAttribute('position', '0 -0.02 0.01');
+                    textEl.setAttribute('color', COLOR_TEXT);
+                    visibleCard.appendChild(textEl);
+
+                    if (ans.icon) {
+                        attachProceduralIcon(visibleCard, ans.icon);
+                    }
+                    answerHolder.appendChild(visibleCard);
+                }
+
+                // Invisible Shootable Hitbox (Slightly larger for raycast assist)
+                const hitbox = document.createElement('a-box');
+                hitbox.classList.add('shootable');
+                hitbox.setAttribute('width', XR_HITBOX_WIDTH);
+                hitbox.setAttribute('height', XR_HITBOX_HEIGHT);
+                hitbox.setAttribute('depth', XR_HITBOX_DEPTH);
+                hitbox.setAttribute('material', 'opacity: 0.001; transparent: true; depthWrite: false;');
+                answerHolder.appendChild(hitbox);
+
+                // Cyan Border Outline (For targeted highlight)
+                const outline = document.createElement('a-box');
+                outline.classList.add('visible-outline');
+                outline.setAttribute('width', XR_VISIBLE_WIDTH + 0.02);
+                outline.setAttribute('height', XR_VISIBLE_HEIGHT + 0.02);
+                outline.setAttribute('depth', 0.02);
+                outline.setAttribute('material', 'shader: flat; wireframe: true; color: #22D3EE; wireframeLineWidth: 3');
+                outline.setAttribute('visible', 'false');
+                answerHolder.appendChild(outline);
+
+                container.appendChild(answerHolder);
+
+                // Movement Animation via A-Frame animation component
+                const delayMs = delay * 1000;
+                const durMs = duration * 1000;
+
+                const timer = setTimeout(() => {
+                    if (questionAnswered) return;
+                    answerHolder.setAttribute('animation__move', {
+                        property: 'position',
+                        to: `${endX} ${endY} ${endZ}`,
+                        dur: durMs,
+                        easing: 'linear'
+                    });
+                }, delayMs);
+
+                activeAnswerAnimators.push({ timer });
+            });
+
+            // Question Timeout setup (earliest target reaching danger zone)
+            const earliestArrival = Math.min(...arrivalTimes) * 1000;
+            const timeoutTimer = setTimeout(() => {
+                if (!questionAnswered) {
+                    handleTimeout();
+                }
+            }, earliestArrival);
+
+            activeAnswerAnimators.push({ timer: timeoutTimer });
+        }
+
+        // ==========================================
+        // DESKTOP MOVEMENT & SPAWN LOGIC
+        // ==========================================
+        function spawnDesktopAnswers(qData) {
+            const playfield = document.getElementById('desktop-playfield');
+            const pWidth = playfield.clientWidth;
+            const pHeight = playfield.clientHeight;
+
+            // 3 Lanes for desktop width
+            const lanes = [
+                [0.05 * pWidth, 0.28 * pWidth],
+                [0.36 * pWidth, 0.60 * pWidth],
+                [0.68 * pWidth, 0.90 * pWidth]
+            ];
+            const shuffledLanes = shuffleArray(lanes);
+            const arrivalTimes = [];
+
+            qData.answers.forEach((ans, idx) => {
+                const lane = shuffledLanes[idx];
+                const startX = randomBetween(lane[0], lane[1]);
+                const startY = 10; // Top under question banner
+                
+                const endX = Math.min(pWidth - 140, Math.max(20, startX + randomBetween(-100, 100)));
+                const endY = pHeight - 70; // Danger line
+
+                const delay = randomBetween(MIN_DELAY_SEC, MAX_DELAY_SEC);
+                const duration = randomBetween(MIN_DURATION_SEC, MAX_DURATION_SEC);
+                arrivalTimes.push(delay + duration);
+
+                // Create DOM Element
+                const card = document.createElement('div');
+                card.className = "desktop-target absolute p-4 bg-slate-900/90 border-2 border-slate-700 rounded-xl shadow-xl cursor-pointer flex flex-col items-center justify-center text-center w-36 sm:w-44 select-none pointer-events-auto";
+                card.style.transform = `translate3d(${startX}px, ${startY}px, 0px)`;
+                card.dataset.correct = ans.correct;
+
+                let iconSymbol = ans.isGLB ? '🔥' : '🛡️';
+                if (ans.icon === 'alarm') iconSymbol = '🚨';
+                if (ans.icon === 'water') iconSymbol = '💧';
+                if (ans.icon === 'stairs') iconSymbol = '🪜';
+                if (ans.icon === 'boxes') iconSymbol = '📦';
+                if (ans.icon === 'telephone') iconSymbol = '📞';
+
+                card.innerHTML = `
+                    <div class="text-2xl mb-1">${iconSymbol}</div>
+                    <div class="text-xs sm:text-sm font-semibold text-slate-200 leading-snug">${ans.text}</div>
+                `;
+
+                playfield.appendChild(card);
+
+                // Event listener
+                card.addEventListener('click', () => {
+                    if (questionAnswered || card.classList.contains('opacity-40')) return;
+                    audio.playShot();
+                    handleAnswerSelection(ans.correct, card);
+                });
+
+                // Frame-by-frame JS Animation Loop
+                let startTime = null;
+                let frameId = null;
+
+                const delayTimer = setTimeout(() => {
+                    function animateStep(timestamp) {
+                        if (questionAnswered) return;
+                        if (!startTime) startTime = timestamp;
+                        const elapsed = (timestamp - startTime) / 1000;
+                        const progress = Math.min(elapsed / duration, 1.0);
+
+                        const currentX = startX + (endX - startX) * progress;
+                        const currentY = startY + (endY - startY) * progress;
+
+                        card.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px)`;
+
+                        if (progress < 1.0 && !questionAnswered) {
+                            frameId = requestAnimationFrame(animateStep);
+                        }
+                    }
+                    frameId = requestAnimationFrame(animateStep);
+                }, delay * 1000);
+
+                activeAnswerAnimators.push({ timer: delayTimer, frame: frameId });
+            });
+
+            // Timeout trigger
+            const earliestArrival = Math.min(...arrivalTimes) * 1000;
+            const timeoutTimer = setTimeout(() => {
+                if (!questionAnswered) {
+                    handleTimeout();
+                }
+            }, earliestArrival);
+
+            activeAnswerAnimators.push({ timer: timeoutTimer });
+        }
+
+        /************************************************************************
+         * ANSWER SELECTION & TIMEOUT LOGIC
+         ************************************************************************/
+        function handleAnswerSelection(isCorrect, targetEl) {
+            if (isCorrect) {
+                questionAnswered = true;
+                score += POINTS_CORRECT;
+                audio.playCorrect();
+                updateHUD();
+
+                showFeedback("CORRECT +10", "green", activeQuestions[currentQIndex].explanation);
+
+                if (isXRMode) {
+                    targetEl.setAttribute('material', 'color', '#22C55E');
+                } else {
+                    targetEl.classList.add('bg-green-600/40', 'border-green-400');
+                }
+
+                setTimeout(() => {
+                    currentQIndex++;
+                    loadNextQuestion();
+                }, 1800);
+
+            } else {
+                // Wrong Answer
+                score += POINTS_WRONG;
+                audio.playWrong();
+                updateHUD();
+
+                showFeedback("WRONG -5", "red", "Try another target!");
+
+                if (isXRMode) {
+                    targetEl.dataset.disabled = "true";
+                    targetEl.setAttribute('visible', 'false');
+                } else {
+                    targetEl.classList.add('opacity-30', 'pointer-events-none', 'border-rose-600');
+                }
+            }
+        }
+
+        function handleTimeout() {
+            questionAnswered = true;
+            score += POINTS_TIMEOUT;
+            audio.playExplosion();
+            updateHUD();
+
+            showFeedback("TOO SLOW -5", "red", "Target reached the danger zone!");
+            triggerExplosionEffect();
+
+            setTimeout(() => {
+                currentQIndex++;
+                loadNextQuestion();
+            }, 1800);
+        }
+
+        function triggerExplosionEffect() {
+            if (isXRMode) {
+                const container = document.getElementById('xr-explosion-container');
+                const exp = document.createElement('a-sphere');
+                exp.setAttribute('radius', '0.1');
+                exp.setAttribute('position', '0 1.0 -1.5');
+                exp.setAttribute('color', '#F97316');
+                exp.setAttribute('material', 'shader: flat; transparent: true; opacity: 0.9');
+                exp.setAttribute('animation__scale', 'property: scale; to: 8 8 8; dur: 450; easing: easeOutQuad');
+                exp.setAttribute('animation__fade', 'property: material.opacity; to: 0; dur: 450; easing: easeOutQuad');
+                container.appendChild(exp);
+
+                setTimeout(() => {
+                    if (exp.parentNode) exp.parentNode.removeChild(exp);
+                }, 500);
+            } else {
+                const playfield = document.getElementById('desktop-playfield');
+                const flash = document.createElement('div');
+                flash.className = 'absolute inset-0 bg-rose-500/20 rounded-xl transition-opacity duration-500 pointer-events-none';
+                playfield.appendChild(flash);
+                setTimeout(() => flash.remove(), 400);
+            }
+        }
+
+        function showFeedback(title, color, text) {
+            const fb = document.getElementById('desktop-feedback');
+            fb.className = `h-6 mt-2 text-sm font-bold ${color === 'green' ? 'text-green-400' : 'text-rose-400'}`;
+            fb.innerText = `${title} - ${text}`;
+
+            if (isXRMode) {
+                const xrQText = document.getElementById('xr-q-text');
+                if (xrQText) {
+                    xrQText.setAttribute('value', `${title}\n${text}`);
+                }
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('hud-score').innerText = score;
+            const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+            const remaining = Math.max(0, GAME_DURATION_SECONDS - elapsed);
+            document.getElementById('hud-timer').innerText = `${remaining}s`;
+
+            const xrStats = document.getElementById('xr-hud-stats');
+            if (xrStats) {
+                xrStats.setAttribute('value', `Score: ${score} | Time: ${remaining}s`);
+            }
+        }
+
+        /************************************************************************
+         * GAME FLOW & LIFECYCLE CONTROLS
+         ************************************************************************/
+        function startGame(xrMode = false) {
+            isXRMode = xrMode;
+            score = 0;
+            currentQIndex = 0;
+            activeQuestions = shuffleArray(QUIZ_QUESTIONS);
+            gameStartTime = Date.now();
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+
+            if (!isXRMode) {
+                document.getElementById('desktop-game-ui').classList.remove('hidden');
+            }
+
+            updateHUD();
+
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            gameTimerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+                const remaining = GAME_DURATION_SECONDS - elapsed;
+                
+                updateHUD();
+
+                if (remaining <= 0) {
+                    endGame();
+                }
+            }, 1000);
+
+            loadNextQuestion();
+        }
+
+        function endGame() {
+            clearActiveAnswerAnimators();
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+
+            const totalTime = Math.floor((Date.now() - gameStartTime) / 1000);
+
+            document.getElementById('desktop-game-ui').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-time').innerText = `${totalTime} seconds`;
+
+            if (isXRMode) {
+                const xrQText = document.getElementById('xr-q-text');
+                if (xrQText) {
+                    xrQText.setAttribute('value', `GAME OVER!\nFinal Score: ${score}`);
+                }
+            }
+        }
+
+        function exitXR() {
+            const scene = document.querySelector('a-scene');
+            if (scene && scene.is('vr-mode')) {
+                scene.exitVR();
+            }
+            isXRMode = false;
+            endGame();
+        }
+
+        /************************************************************************
+         * INITIALIZATION & EVENT BINDINGS
+         ************************************************************************/
+        window.addEventListener('DOMContentLoaded', () => {
+            const btnEnterXR = document.getElementById('btn-enter-xr');
+            const btnPlayDesktop = document.getElementById('btn-play-desktop');
+            const btnStopDesktop = document.getElementById('btn-stop-desktop');
+            const btnRestart = document.getElementById('btn-restart');
+            const statusTag = document.getElementById('xr-status-tag');
+
+            // WebXR AR Capability Check
+            if (navigator.xr) {
+                navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+                    if (supported) {
+                        btnEnterXR.classList.remove('hidden');
+                        statusTag.innerText = "Meta Quest WebXR Passthrough Supported!";
+                        statusTag.classList.add('text-green-400');
+                    } else {
+                        statusTag.innerText = "WebXR AR session not supported on this device. Desktop mode active.";
+                    }
+                }).catch(() => {
+                    statusTag.innerText = "Desktop version ready.";
+                });
+            } else {
+                statusTag.innerText = "WebXR not available in this browser. Desktop mode ready.";
+            }
+
+            // Button Event Listeners
+            btnPlayDesktop.addEventListener('click', () => {
+                startGame(false);
+            });
+
+            btnEnterXR.addEventListener('click', () => {
+                const scene = document.querySelector('a-scene');
+                if (scene) {
+                    scene.enterVR(); // Enters WebXR mode
+                    startGame(true);
+                }
+            });
+
+            btnStopDesktop.addEventListener('click', endGame);
+            btnRestart.addEventListener('click', () => {
+                if (isXRMode) {
+                    startGame(true);
+                } else {
+                    startGame(false);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
