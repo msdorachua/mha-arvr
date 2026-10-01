@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Fire Safety Hazard Buster - WebXR</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <link type="text/css" rel="stylesheet" href="https://xrblocks.github.io/css/xr.css" />
+    <script>window.litDisableBundleWarning = true;</script>
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+        "three/": "https://cdn.jsdelivr.net/npm/three@0.184.0/",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/",
+        "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@1.0.64/dist/index.min.js",
+        "@pmndrs/uikit-pub-sub": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit-pub-sub@1.0.64/dist/index.min.js",
+        "@pmndrs/msdfonts": "https://cdn.jsdelivr.net/npm/@pmndrs/msdfonts@1.0.64/dist/index.min.js",
+        "@preact/signals-core": "https://cdn.jsdelivr.net/npm/@preact/signals-core@1.14.0/dist/signals-core.mjs",
+        "yoga-layout/load": "https://cdn.jsdelivr.net/npm/yoga-layout@3.2.1/dist/src/load.js",
+        "lit": "https://esm.sh/lit@3.3.1",
+        "lit/": "https://esm.sh/lit@3.3.1/",
+        "xrblocks": "https://cdn.jsdelivr.net/npm/xrblocks@0.21.1/build/xrblocks.js",
+        "xrblocks/addons/": "https://cdn.jsdelivr.net/npm/xrblocks@0.21.1/build/addons/"
+      }
+    }
+    </script>
+    <style>
+      body, html {
+        margin: 0; padding: 0; width: 100%; height: 100%;
+        overflow: hidden; background-color: #080a12;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        touch-action: none; user-select: none; -webkit-user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      import * as THREE from 'three';
+      import * as xb from 'xrblocks';
+
+      // ==========================================
+      // ZERO-DEPENDENCY PROCEDURAL WEB AUDIO ENGINE
+      // ==========================================
+      class FireSafetyAudioEngine {
+        constructor() {
+          this.ctx = null;
+        }
+
+        ensureContext() {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        }
+
+        playExtinguisherSpray() {
+          try {
+            this.ensureContext();
+            if (!this.ctx) return;
+            const bufferSize = this.ctx.sampleRate * 0.18;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+              data[i] = Math.random() * 2 - 1;
+            }
+            const src = this.ctx.createBufferSource();
+            src.buffer = buffer;
+
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(1600, this.ctx.currentTime);
+            filter.Q.setValueAtTime(1.8, this.ctx.currentTime);
+
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.16);
+
+            src.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+            src.start();
+          } catch (_) {}
+        }
+
+        playSuccessChime() {
+          try {
+            this.ensureContext();
+            if (!this.ctx) return;
+            const now = this.ctx.currentTime;
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            notes.forEach((freq, idx) => {
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, now + idx * 0.045);
+              gain.gain.setValueAtTime(0.2, now + idx * 0.045);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.045 + 0.22);
+              osc.connect(gain);
+              gain.connect(this.ctx.destination);
+              osc.start(now + idx * 0.045);
+              osc.stop(now + idx * 0.045 + 0.24);
+            });
+          } catch (_) {}
+        }
+
+        playErrorBuzz() {
+          try {
+            this.ensureContext();
+            if (!this.ctx) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.linearRampToValueAtTime(80, now + 0.28);
+            gain.gain.setValueAtTime(0.28, now);
+            gain.gain.exponentialRampToValueAtTime(0.008, now + 0.28);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.3);
+          } catch (_) {}
+        }
+
+        playFloorThud() {
+          try {
+            this.ensureContext();
+            if (!this.ctx) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(90, now);
+            osc.frequency.exponentialRampToValueAtTime(30, now + 0.22);
+            gain.gain.setValueAtTime(0.35, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.24);
+          } catch (_) {}
+        }
+
+        playWarningTick() {
+          try {
+            this.ensureContext();
+            if (!this.ctx) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.06);
+          } catch (_) {}
+        }
+      }
+
+      // ==========================================
+      // ROBUST QUESTION POOL (35 UNIQUE FIRE SAFETY QUESTIONS)
+      // ==========================================
+      const FIRE_SAFETY_QUESTIONS = [
+        { q: "First step in the P.A.S.S. protocol for extinguishers?", correct: "Pull the safety pin", wrongs: ["Aim at the top flames", "Squeeze immediately"] },
+        { q: "How should you put out a burning kitchen grease fire?", correct: "Smother with a metal lid", wrongs: ["Pour water directly on it", "Fan it with a towel"] },
+        { q: "What should you do if your clothes catch fire?", correct: "Stop, Drop, and Roll", wrongs: ["Run fast to extinguish", "Stand and wave hands"] },
+        { q: "Which class of extinguisher is for electrical fires?", correct: "Class C", wrongs: ["Class A", "Class K"] },
+        { q: "What is a Class A fire extinguisher designed for?", correct: "Wood, paper & cloth", wrongs: ["Cooking oils & fats", "Flammable metals"] },
+        { q: "What is a Class K extinguisher specifically rated for?", correct: "Commercial cooking oils", wrongs: ["Electrical equipment", "Paper and trash"] },
+        { q: "Best technique when escaping through a smoke-filled room?", correct: "Crawl low under smoke", wrongs: ["Run upright quickly", "Walk while ducking"] },
+        { q: "Where should you aim a fire extinguisher nozzle?", correct: "Base of the fire", wrongs: ["Top of the flames", "Middle of the smoke"] },
+        { q: "In the P.A.S.S. acronym, what does 'A' stand for?", correct: "Aim low at base", wrongs: ["Activate emergency horn", "Alert all occupants"] },
+        { q: "In the P.A.S.S. acronym, what does the first 'S' stand for?", correct: "Squeeze the lever", wrongs: ["Sweep back and forth", "Stay far back"] },
+        { q: "In the P.A.S.S. acronym, what does the second 'S' stand for?", correct: "Sweep side to side", wrongs: ["Shut off fuel line", "Stand up straight"] },
+        { q: "What class of extinguisher targets flammable liquids (gasoline/oil)?", correct: "Class B", wrongs: ["Class A", "Class C"] },
+        { q: "Class D fire extinguishers are used specifically for:", correct: "Combustible metals", wrongs: ["Paper and wood", "Electrical wires"] },
+        { q: "How often should smoke alarm batteries generally be replaced?", correct: "At least once a year", wrongs: ["Every 5 years", "Every 10 years"] },
+        { q: "What should you do before opening a closed door in a burning building?", correct: "Feel door with back of hand", wrongs: ["Kick it open fast", "Turn handle immediately"] },
+        { q: "Primary dangerous component in house fire smoke?", correct: "Toxic Carbon Monoxide", wrongs: ["Pure Argon gas", "Carbon Dioxide only"] },
+        { q: "If your escape route is blocked by fire, you should:", correct: "Seal door and signal window", wrongs: ["Break wall immediately", "Hide inside a closet"] },
+        { q: "How often should family home fire escape plans be practiced?", correct: "At least twice a year", wrongs: ["Once every 5 years", "Only after a fire"] },
+        { q: "Safe distance to maintain from fire when operating extinguisher?", correct: "6 to 8 feet away", wrongs: ["1 to 2 feet away", "15 to 20 feet away"] },
+        { q: "Never use water on an electrical fire because water:", correct: "Conducts electricity", wrongs: ["Feeds chemical oxygen", "Makes smoke denser"] },
+        { q: "If grease catches fire in a pan, NEVER apply:", correct: "Water or flour", wrongs: ["Baking soda", "A damp tight cloth"] },
+        { q: "What color code is standard for CO2 fire extinguishers?", correct: "Red with black label band", wrongs: ["Solid bright yellow", "Blue with white stripe"] },
+        { q: "Smoke alarms should be installed on every level of a home and:", correct: "Inside every bedroom", wrongs: ["Only near the furnace", "Only inside garage"] },
+        { q: "What is the primary function of a fire blanket?", correct: "Smother small fires / people", wrongs: ["Absorb toxic gas", "Shield eyes from glare"] },
+        { q: "Fire tetrahedron consists of Fuel, Heat, Oxygen, and:", correct: "Chemical chain reaction", wrongs: ["Pressure build-up", "Nitrogen atmosphere"] },
+        { q: "What should you do if an appliance begins smoking or sparking?", correct: "Unplug if safe or flip breaker", wrongs: ["Throw wet rag over it", "Spray water into vents"] },
+        { q: "When crawling through smoke, where is the cleanest air?", correct: "12 to 24 inches off floor", wrongs: ["Directly touching ceiling", "Exactly at waist height"] },
+        { q: "Standard lifespan of most home smoke detectors before replacement?", correct: "10 years", wrongs: ["25 years", "2 years"] },
+        { q: "If trapped in a room with smoke seeping under door, you should:", correct: "Block cracks with wet towels", wrongs: ["Open all windows wide", "Fan door continuously"] },
+        { q: "Why should you NOT throw flour on a pan fire?", correct: "Flour dust can explode", wrongs: ["Flour melts into gas", "Flour cools fire down"] },
+        { q: "Class A fires leave behind what residue?", correct: "Ash", wrongs: ["Melted copper wire", "Chemical sludges"] },
+        { q: "When calling emergency services for a fire, prioritize giving:", correct: "Exact address and location", wrongs: ["List of lost items", "Extinguisher serial number"] },
+        { q: "In a burning high-rise building, you should ALWAYS use:", correct: "Stairwells", wrongs: ["Elevators", "Laundry chutes"] },
+        { q: "Purpose of the pressure gauge on a fire extinguisher?", correct: "Shows if adequately charged", wrongs: ["Measures room temperature", "Indicates foam weight"] },
+        { q: "An extinguisher gauge needle resting in the GREEN zone means:", correct: "Ready for proper use", wrongs: ["Overcharged danger", "Empty and discharged"] }
+      ];
+
+      // ==========================================
+      // MAIN GAME SCRIPT (XR BLOCKS EXTENSION)
+      // ==========================================
+      class FireSafetyGame extends xb.Script {
+        init() {
+          // 1. Lighting Setup
+          const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+          const hemiLight = new THREE.HemisphereLight(0xffedd5, 0x0f172a, 2.2);
+          hemiLight.position.set(0, 5, 0);
+          const dirLight = new THREE.DirectionalLight(0xff8833, 2.5);
+          dirLight.position.set(2, 4, 1);
+          this.add(ambientLight);
+          this.add(hemiLight);
+          this.add(dirLight);
+
+          // 2. Audio Subsystem
+          this.sfx = new FireSafetyAudioEngine();
+
+          // 3. State Management
+          this.score = 0;
+          this.streak = 0;
+          this.timeLeft = 30;
+          this.gameState = 'IDLE'; // 'IDLE', 'PLAYING', 'GAMEOVER'
+          this.activeQuestion = null;
+          this.fallingBlocks = [];
+          this.poolIndex = 0;
+          this.questionPool = [];
+          this.lastTickPlayed = -1;
+
+          // Raycaster setup for cross-platform input
+          this.raycaster = new THREE.Raycaster();
+          this.pointer = new THREE.Vector2();
+
+          // Particle Pool for Extinguisher Spray
+          this.particles = [];
+          this.initParticleSystem();
+
+          // Spatial Environment & Grounding
+          this.buildEnvironment();
+
+          // Spatial UI Construction
+          this.buildSpatialUI();
+
+          // Shuffle questions initially
+          this.resetQuestionPool();
+
+          // Window Pointer Binding for Desktop/Mobile
+          this.boundPointerDown = (evt) => this.onScreenPointerDown(evt);
+          window.addEventListener('pointerdown', this.boundPointerDown, { passive: false });
+        }
+
+        resetQuestionPool() {
+          this.questionPool = [...FIRE_SAFETY_QUESTIONS];
+          // Fisher-Yates Shuffle
+          for (let i = this.questionPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.questionPool[i], this.questionPool[j]] = [this.questionPool[j], this.questionPool[i]];
+          }
+          this.poolIndex = 0;
+        }
+
+        getNextQuestion() {
+          if (this.poolIndex >= this.questionPool.length) {
+            this.resetQuestionPool();
+          }
+          return this.questionPool[this.poolIndex++];
+        }
+
+        buildEnvironment() {
+          // Floor reference grid plate
+          const floorGeo = new THREE.PlaneGeometry(6, 6);
+          const floorMat = new THREE.MeshStandardMaterial({
+            color: 0x111827,
+            roughness: 0.8,
+            metalness: 0.2,
+            wireframe: false
+          });
+          const floor = new THREE.Mesh(floorGeo, floorMat);
+          floor.rotation.x = -Math.PI / 2;
+          floor.position.set(0, 0, -1.15);
+          this.add(floor);
+
+          // Danger Warning Line at Floor Penalty Threshold (Y = 0.42m)
+          const lineGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-1.2, 0.42, -1.2),
+            new THREE.Vector3(1.2, 0.42, -1.2)
+          ]);
+          const lineMat = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 3 });
+          const dangerLine = new THREE.Line(lineGeo, lineMat);
+          this.add(dangerLine);
+        }
+
+        buildSpatialUI() {
+          // Main UI Card positioned precisely at eye level (Y=1.92m, Z=-1.35m)
+          this.hudCard = new xb.UICard({
+            size: { width: 1.1, height: 'auto' },
+            manipulation: false,
+            edge: false,
+            style: {
+              flexDirection: 'column',
+              gap: 8,
+              padding: 16,
+              backgroundColor: 0x0f172a,
+              borderRadius: 16,
+              borderWidth: 2,
+              borderColor: 0x38bdf8
+            }
+          });
+          this.hudCard.position.set(0, 1.92, -1.35);
+          this.hudCard.rotation.x = 0.14;
+          this.add(this.hudCard);
+
+          // Top Header Row (Title + Timer + Score)
+          this.headerPanel = new xb.UIPanel({
+            style: {
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              width: '100%'
+            }
+          });
+
+          this.titleText = new xb.UIText('FIRE SAFETY HAZARD BUSTER', {
+            style: { fontSize: 0.038, color: 0xfba518, fontWeight: 'bold' }
+          });
+
+          this.timerText = new xb.UIText('TIME: 30s', {
+            style: { fontSize: 0.042, color: 0x38bdf8, fontWeight: 'bold' }
+          });
+
+          this.scoreText = new xb.UIText('SCORE: 0', {
+            style: { fontSize: 0.042, color: 0x4ade80, fontWeight: 'bold' }
+          });
+
+          this.headerPanel.add(this.titleText);
+          this.headerPanel.add(this.timerText);
+          this.headerPanel.add(this.scoreText);
+          this.hudCard.add(this.headerPanel);
+
+          // Question Display Panel
+          this.questionPanel = new xb.UIPanel({
+            style: {
+              width: '100%',
+              padding: 12,
+              backgroundColor: 0x1e293b,
+              borderRadius: 10,
+              alignItems: 'center',
+              justifyContent: 'center'
+            }
+          });
+
+          this.questionText = new xb.UIText('Press START DRILL to begin fire safety certification!', {
+            style: { fontSize: 0.036, color: 0xf8fafc, textAlign: 'center' }
+          });
+          this.questionPanel.add(this.questionText);
+          this.hudCard.add(this.questionPanel);
+
+          // Streak & Subtitle Info Panel
+          this.infoPanel = new xb.UIPanel({
+            style: {
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              width: '100%'
+            }
+          });
+
+          this.streakText = new xb.UIText('STREAK: 0x (+0 bonus)', {
+            style: { fontSize: 0.030, color: 0xfacc15 }
+          });
+
+          this.statusText = new xb.UIText('Aim extinguisher stream at correct falling answer!', {
+            style: { fontSize: 0.030, color: 0x94a3b8 }
+          });
+
+          this.infoPanel.add(this.streakText);
+          this.infoPanel.add(this.statusText);
+          this.hudCard.add(this.infoPanel);
+
+          // Action Button (Start / Restart)
+          this.actionButton = new xb.UIButton('START DRILL', () => {
+            this.sfx.ensureContext();
+            this.startNewGame();
+          }, {
+            style: {
+              width: '100%',
+              height: 0.07,
+              backgroundColor: 0xd97706,
+              borderRadius: 8,
+              justifyContent: 'center',
+              alignItems: 'center'
+            }
+          });
+          this.hudCard.add(this.actionButton);
+        }
+
+        startNewGame() {
+          this.score = 0;
+          this.streak = 0;
+          this.timeLeft = 30;
+          this.lastTickPlayed = -1;
+          this.gameState = 'PLAYING';
+          this.clearFallingBlocks();
+          this.updateHUD();
+          this.actionButton.visible = false;
+          this.spawnNextQuestion();
+        }
+
+        spawnNextQuestion() {
+          this.clearFallingBlocks();
+          if (this.gameState !== 'PLAYING') return;
+
+          this.activeQuestion = this.getNextQuestion();
+          this.questionText.setText(this.activeQuestion.q);
+
+          // Shuffle correct answer with wrong options
+          const optionsList = [
+            { text: this.activeQuestion.correct, isCorrect: true },
+            { text: this.activeQuestion.wrongs[0], isCorrect: false },
+            { text: this.activeQuestion.wrongs[1], isCorrect: false }
+          ];
+
+          for (let i = optionsList.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [optionsList[i], optionsList[j]] = [optionsList[j], optionsList[i]];
+          }
+
+          // Dynamic lane calculation according to viewport ratio
+          const aspect = window.innerWidth / window.innerHeight;
+          const laneScale = aspect < 1.0 ? Math.min(1.0, aspect * 1.1) : 1.0;
+          const laneBases = [-0.62 * laneScale, 0.0, 0.62 * laneScale];
+
+          optionsList.forEach((opt, idx) => {
+            const blockMesh = this.createAnswerBlockMesh(opt.text, opt.isCorrect);
+            
+            // Randomize dynamic movement parameters
+            const fallSpeed = 0.15 + Math.random() * 0.14 + (idx * 0.02);
+            const swayAmp = 0.04 + Math.random() * 0.06;
+            const swaySpeed = 1.5 + Math.random() * 2.0;
+            const phase = Math.random() * Math.PI * 2;
+            const driftSpeed = (Math.random() - 0.5) * 0.05;
+
+            const spawnX = laneBases[idx];
+            const spawnY = 1.68 + (Math.random() * 0.08);
+            const spawnZ = -1.25;
+
+            blockMesh.position.set(spawnX, spawnY, spawnZ);
+            blockMesh.userData = {
+              isAnswerBlock: true,
+              isCorrect: opt.isCorrect,
+              text: opt.text,
+              baseX: spawnX,
+              fallSpeed: fallSpeed,
+              swayAmp: swayAmp,
+              swaySpeed: swaySpeed,
+              phase: phase,
+              driftSpeed: driftSpeed,
+              spawnTime: performance.now() * 0.001
+            };
+
+            this.fallingBlocks.push(blockMesh);
+            this.add(blockMesh);
+          });
+        }
+
+        createAnswerBlockMesh(textStr, isCorrect) {
+          const group = new THREE.Group();
+
+          // 3D Block Container
+          const geo = new THREE.BoxGeometry(0.52, 0.22, 0.08);
+          const mat = new THREE.MeshStandardMaterial({
+            color: 0x1e293b,
+            metalness: 0.3,
+            roughness: 0.4,
+            emissive: 0x0f172a,
+            emissiveIntensity: 0.2
+          });
+          const box = new THREE.Mesh(geo, mat);
+          group.add(box);
+
+          // Glowing border trim
+          const edgesGeo = new THREE.EdgesGeometry(geo);
+          const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8 });
+          const wireframe = new THREE.LineSegments(edgesGeo, lineMat);
+          group.add(wireframe);
+
+          // Spatial Text Label inside block
+          const textUI = new xb.UIText(textStr, {
+            style: {
+              fontSize: 0.026,
+              color: 0xffffff,
+              textAlign: 'center',
+              fontWeight: 'bold'
+            }
+          });
+          textUI.position.set(0, 0, 0.045);
+          group.add(textUI);
+
+          return group;
+        }
+
+        clearFallingBlocks() {
+          this.fallingBlocks.forEach(b => {
+            this.remove(b);
+            if (b.geometry) b.geometry.dispose();
+            if (b.material) b.material.dispose();
+          });
+          this.fallingBlocks = [];
+        }
+
+        // Particle Stream for Extinguisher Discharge
+        initParticleSystem() {
+          const particleCount = 40;
+          const pGeo = new THREE.SphereGeometry(0.018, 6, 6);
+          const pMat = new THREE.MeshBasicMaterial({
+            color: 0xe0f2fe,
+            transparent: true,
+            opacity: 0.8
+          });
+
+          for (let i = 0; i < particleCount; i++) {
+            const mesh = new THREE.Mesh(pGeo, pMat.clone());
+            mesh.visible = false;
+            mesh.userData = { active: false, life: 0, maxLife: 0.35, vel: new THREE.Vector3() };
+            this.particles.push(mesh);
+            this.add(mesh);
+          }
+        }
+
+        emitExtinguisherStream(origin, targetPos) {
+          const dir = new THREE.Vector3().subVectors(targetPos, origin).normalize();
+          this.particles.forEach((p) => {
+            if (!p.userData.active && Math.random() < 0.4) {
+              p.userData.active = true;
+              p.userData.life = 0;
+              p.userData.maxLife = 0.25 + Math.random() * 0.15;
+              p.position.copy(origin);
+              
+              // Spray spread cone
+              const spread = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.25,
+                (Math.random() - 0.5) * 0.25,
+                (Math.random() - 0.5) * 0.25
+              );
+              p.userData.vel.copy(dir).multiplyScalar(6.5 + Math.random() * 2.5).add(spread);
+              p.visible = true;
+              p.material.opacity = 0.85;
+            }
+          });
+        }
+
+        updateParticles(dt) {
+          this.particles.forEach((p) => {
+            if (p.userData.active) {
+              p.userData.life += dt;
+              if (p.userData.life >= p.userData.maxLife) {
+                p.userData.active = false;
+                p.visible = false;
+              } else {
+                p.position.addScaledVector(p.userData.vel, dt);
+                const progress = p.userData.life / p.userData.maxLife;
+                p.material.opacity = 0.85 * (1.0 - progress);
+                p.scale.setScalar(1.0 + progress * 2.0);
+              }
+            }
+          });
+        }
+
+        // ==========================================
+        // TRI-PLATFORM CROSS-INPUT HANDLERS
+        // ==========================================
+        onScreenPointerDown(event) {
+          this.sfx.ensureContext();
+          if (this.gameState !== 'PLAYING') return;
+          if (xb.core?.renderer?.xr?.isPresenting) return; // Let VR events handle if in headset
+          if (event.target && event.target.closest && event.target.closest('button')) return;
+
+          const rect = xb.core.renderer.domElement.getBoundingClientRect();
+          this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+          this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+          this.raycaster.setFromCamera(this.pointer, xb.core.camera);
+          const intersects = this.raycaster.intersectObjects(this.fallingBlocks, true);
+          const origin = xb.core.camera.position.clone();
+
+          if (intersects.length > 0) {
+            let hitObj = intersects[0].object;
+            while (hitObj.parent && !hitObj.userData?.isAnswerBlock) {
+              hitObj = hitObj.parent;
+            }
+            if (hitObj.userData?.isAnswerBlock) {
+              this.handleTargetHit(hitObj, origin, intersects[0].point);
+            }
+          } else {
+            const targetPoint = this.raycaster.ray.at(1.5, new THREE.Vector3());
+            this.sfx.playExtinguisherSpray();
+            this.emitExtinguisherStream(origin, targetPoint);
+          }
+        }
+
+        onSelectStart(event) {
+          this.sfx.ensureContext();
+          if (this.gameState !== 'PLAYING') return;
+
+          const controller = event.source?.controller;
+          const origin = new THREE.Vector3();
+          const direction = new THREE.Vector3();
+
+          if (controller) {
+            origin.setFromMatrixPosition(controller.matrixWorld);
+            const tempMatrix = new THREE.Matrix4().extractRotation(controller.matrixWorld);
+            direction.set(0, 0, -1).applyMatrix4(tempMatrix).normalize();
+          } else {
+            origin.setFromMatrixPosition(xb.core.camera.matrixWorld);
+            xb.core.camera.getWorldDirection(direction);
+          }
+
+          this.raycaster.set(origin, direction);
+          const intersects = this.raycaster.intersectObjects(this.fallingBlocks, true);
+
+          if (intersects.length > 0) {
+            let hitObj = intersects[0].object;
+            while (hitObj.parent && !hitObj.userData?.isAnswerBlock) {
+              hitObj = hitObj.parent;
+            }
+            if (hitObj.userData?.isAnswerBlock) {
+              this.handleTargetHit(hitObj, origin, intersects[0].point);
+            }
+          } else {
+            const targetPoint = origin.clone().add(direction.clone().multiplyScalar(1.5));
+            this.sfx.playExtinguisherSpray();
+            this.emitExtinguisherStream(origin, targetPoint);
+          }
+        }
+
+        onObjectSelectStart(event) {
+          if (this.gameState !== 'PLAYING') return;
+          let target = event.target;
+          while (target && target.parent && !target.userData?.isAnswerBlock) {
+            target = target.parent;
+          }
+
+          if (target && target.userData?.isAnswerBlock) {
+            const origin = event.source?.controller 
+              ? event.source.controller.position.clone() 
+              : xb.core.camera.position.clone();
+            this.handleTargetHit(target, origin, target.position.clone());
+            if (event.stopPropagation) event.stopPropagation();
+          }
+        }
+
+        handleTargetHit(blockMesh, origin, hitPoint) {
+          this.sfx.playExtinguisherSpray();
+          this.emitExtinguisherStream(origin, hitPoint || blockMesh.position);
+
+          const isCorrect = blockMesh.userData.isCorrect;
+
+          if (isCorrect) {
+            this.sfx.playSuccessChime();
+            this.streak++;
+            const bonus = (this.streak - 1) * 35;
+            const pointsGained = 100 + bonus;
+            this.score += pointsGained;
+            this.statusText.setText(`CORRECT! +${pointsGained} pts`);
+            this.spawnNextQuestion();
+          } else {
+            this.sfx.playErrorBuzz();
+            this.streak = 0;
+            this.score = Math.max(0, this.score - 50);
+            this.statusText.setText('WRONG EXTINCTION HAZARD! -50 pts');
+            this.remove(blockMesh);
+            this.fallingBlocks = this.fallingBlocks.filter(b => b !== blockMesh);
+          }
+
+          this.updateHUD();
+        }
+
+        handleFloorCrash(blockMesh) {
+          this.sfx.playFloorThud();
+          this.streak = 0;
+          this.score = Math.max(0, this.score - 30);
+          this.statusText.setText('HAZARD REACHED FLOOR! -30 pts');
+          this.updateHUD();
+
+          // Check if the crashed block was the correct answer
+          if (blockMesh.userData.isCorrect) {
+            this.spawnNextQuestion();
+          } else {
+            this.remove(blockMesh);
+            this.fallingBlocks = this.fallingBlocks.filter(b => b !== blockMesh);
+            // If no blocks remain, advance
+            if (this.fallingBlocks.length === 0) {
+              this.spawnNextQuestion();
+            }
+          }
+        }
+
+        updateHUD() {
+          this.timerText.setText(`TIME: ${Math.ceil(this.timeLeft)}s`);
+          this.scoreText.setText(`SCORE: ${this.score}`);
+          const streakBonus = Math.max(0, (this.streak - 1) * 35);
+          this.streakText.setText(`STREAK: ${this.streak}x (+${streakBonus} bonus)`);
+        }
+
+        evaluateRank() {
+          if (this.score >= 1200) return 'ELITE FIRE CHIEF';
+          if (this.score >= 750) return 'SENIOR FIREFIGHTER';
+          if (this.score >= 350) return 'CERTIFIED RESPONDER';
+          return 'SAFETY CADET';
+        }
+
+        endGame() {
+          this.gameState = 'GAMEOVER';
+          this.clearFallingBlocks();
+          const rank = this.evaluateRank();
+          this.questionText.setText(`DRILL COMPLETE!\nFinal Score: ${this.score} Pts\nAssigned Rank: ${rank}`);
+          this.statusText.setText('Review fire protocols and attempt another drill.');
+          this.actionButton.setText('RESTART DRILL');
+          this.actionButton.visible = true;
+        }
+
+        update() {
+          const dt = xb.getDeltaTime();
+          this.updateParticles(dt);
+
+          if (this.gameState !== 'PLAYING') return;
+
+          // 1. Timer Management
+          this.timeLeft -= dt;
+          if (this.timeLeft <= 10 && Math.floor(this.timeLeft) !== this.lastTickPlayed) {
+            this.lastTickPlayed = Math.floor(this.timeLeft);
+            this.sfx.playWarningTick();
+          }
+
+          if (this.timeLeft <= 0) {
+            this.timeLeft = 0;
+            this.updateHUD();
+            this.endGame();
+            return;
+          }
+
+          this.updateHUD();
+
+          // 2. Dynamic Movement & Sway Logic
+          const currentTime = performance.now() * 0.001;
+          const aspect = window.innerWidth / window.innerHeight;
+          const maxCorridorX = aspect < 1.0 ? Math.max(0.38, aspect * 0.72) : 0.85;
+
+          const toRemove = [];
+
+          this.fallingBlocks.forEach((block) => {
+            const data = block.userData;
+            const elapsedTime = currentTime - data.spawnTime;
+
+            // Descending movement
+            block.position.y -= data.fallSpeed * dt;
+
+            // Sinusoidal horizontal sway + lateral drift
+            const sway = Math.sin(elapsedTime * data.swaySpeed + data.phase) * data.swayAmp;
+            const rawX = data.baseX + sway + (data.driftSpeed * elapsedTime);
+            block.position.x = THREE.MathUtils.clamp(rawX, -maxCorridorX, maxCorridorX);
+
+            // Subtle banking tilt
+            block.rotation.z = Math.sin(elapsedTime * data.swaySpeed * 0.8) * 0.09;
+
+            // Check floor crash penalty threshold (Y <= 0.42m)
+            if (block.position.y <= 0.42) {
+              toRemove.push(block);
+            }
+          });
+
+          // Process crashed blocks
+          toRemove.forEach((block) => {
+            this.handleFloorCrash(block);
+          });
+        }
+
+        dispose() {
+          window.removeEventListener('pointerdown', this.boundPointerDown);
+          this.clearFallingBlocks();
+          this.particles.forEach(p => {
+            if (p.geometry) p.geometry.dispose();
+            if (p.material) p.material.dispose();
+          });
+        }
+      }
+
+      // ==========================================
+      // BOOTSTRAP INITIALIZATION
+      // ==========================================
+      const options = new xb.Options();
+      options.setAppTitle('Fire Safety Hazard Buster');
+      options.controllers.visualizeRays = true;
+      options.reticles.enabled = true;
+      options.interaction.raycastMode = 'select';
+
+      document.addEventListener('DOMContentLoaded', async () => {
+        xb.add(new FireSafetyGame());
+        await xb.init(options);
+      });
+    </script>
+  </body>
+</html>
