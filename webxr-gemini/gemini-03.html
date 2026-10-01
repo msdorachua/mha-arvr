@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>XR Safety Quiz Challenge</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+  <!-- A-Frame 1.8.0 -->
+  <script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
+
+  <style>
+    /* ==================================================
+       RESET & BASE STYLING
+       ================================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0b111e;
+      color: #ffffff;
+    }
+
+    /* ==================================================
+       START SCREEN OVERLAY
+       ================================================== */
+    #start-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at center, #1b263b 0%, #080d1a 100%);
+      z-index: 1000;
+      padding: 24px;
+      text-align: center;
+    }
+
+    #start-screen h1 {
+      font-size: 2.8rem;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      color: #00e5ff;
+      text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+    }
+
+    #start-screen p {
+      font-size: 1.15rem;
+      color: #94a3b8;
+      max-width: 520px;
+      margin-bottom: 36px;
+      line-height: 1.5;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .action-button {
+      padding: 16px 24px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .action-button:active {
+      transform: scale(0.97);
+    }
+
+    .btn-mr {
+      background-color: #00e5ff;
+      color: #051026;
+      box-shadow: 0 4px 20px rgba(0, 229, 255, 0.35);
+    }
+
+    .btn-mr:hover {
+      box-shadow: 0 6px 25px rgba(0, 229, 255, 0.55);
+    }
+
+    .btn-desktop {
+      background-color: #334155;
+      color: #f8fafc;
+      border: 1px solid #475569;
+    }
+
+    .btn-desktop:hover {
+      background-color: #475569;
+    }
+
+    /* ==================================================
+       DESKTOP 2D PLAYING ARENA
+       ================================================== */
+    #desktop-container {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #0b1329 0%, #151d3b 100%);
+      z-index: 50;
+      overflow: hidden;
+    }
+
+    #desktop-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 70px;
+      background: rgba(15, 23, 42, 0.85);
+      border-bottom: 2px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      z-index: 60;
+      backdrop-filter: blur(8px);
+    }
+
+    .hud-pill {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: #1e293b;
+      padding: 8px 18px;
+      border-radius: 9999px;
+      border: 1px solid #475569;
+    }
+
+    #btn-desktop-stop {
+      padding: 8px 18px;
+      background-color: #e11d48;
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    #desktop-question-card {
+      position: absolute;
+      top: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 88%;
+      max-width: 800px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 2px solid #38bdf8;
+      border-radius: 12px;
+      padding: 20px 24px;
+      text-align: center;
+      z-index: 60;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    #desktop-q-text {
+      font-size: 1.35rem;
+      font-weight: 600;
+      line-height: 1.4;
+      color: #f1f5f9;
+    }
+
+    #desktop-feedback {
+      margin-top: 10px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      min-height: 28px;
+    }
+
+    /* Danger line indicator at bottom */
+    #danger-zone-line {
+      position: absolute;
+      bottom: 24px;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: repeating-linear-gradient(90deg, #ef4444, #ef4444 20px, #7f1d1d 20px, #7f1d1d 40px);
+      z-index: 55;
+    }
+
+    #danger-zone-label {
+      position: absolute;
+      bottom: 32px;
+      right: 24px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #ef4444;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      z-index: 55;
+    }
+
+    /* Moving answers in desktop */
+    .desktop-answer-target {
+      position: absolute;
+      width: 260px;
+      min-height: 80px;
+      background: #1e293b;
+      border: 2px solid #38bdf8;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 12px 16px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #ffffff;
+      cursor: pointer;
+      z-index: 58;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      transform: translate3d(0, 0, 0);
+      will-change: transform;
+    }
+
+    .desktop-answer-target:hover {
+      border-color: #00e5ff;
+      background: #2b3952;
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+    }
+
+    .desktop-answer-target.disabled {
+      opacity: 0.25;
+      pointer-events: none;
+      border-color: #64748b;
+      background: #0f172a;
+    }
+
+    /* 2D explosion simulation */
+    .desktop-explosion {
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #f97316 20%, #ef4444 60%, rgba(239, 68, 68, 0) 100%);
+      transform: translate(-50%, -50%) scale(0.2);
+      opacity: 1;
+      pointer-events: none;
+      z-index: 70;
+      transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+    }
+
+    /* ==================================================
+       GAME OVER OVERLAY
+       ================================================== */
+    #game-over-screen {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 15, 29, 0.96);
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      text-align: center;
+      padding: 24px;
+    }
+
+    #game-over-screen h2 {
+      font-size: 2.6rem;
+      color: #38bdf8;
+      margin-bottom: 24px;
+      letter-spacing: 1.5px;
+    }
+
+    .result-stat {
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+      color: #e2e8f0;
+    }
+
+    .result-stat span {
+      font-weight: 800;
+      color: #00e5ff;
+    }
+
+    #btn-restart {
+      margin-top: 32px;
+      background-color: #10b981;
+      color: #064e3b;
+      font-weight: 800;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ==================================================
+       AUDIO SYNTHESIZER SCRIPT (NO EXTERNAL ASSETS)
+       ================================================== -->
+  <script>
+    // Audio Context instance
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // CHANGE SHOOTING SOUND HERE
+    function playShootSound() {
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
+      } catch (e) {
+        console.warn("Audio error:", e);
+      }
+    }
+
+    function playCorrectSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        // Two ascending notes
+        [523.25, 659.25, 783.99].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+          gain.gain.setValueAtTime(0.3, now + idx * 0.08);
+          gain.gain.linearRampToValueAtTime(0.01, now + (idx + 1) * 0.12);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + (idx + 1) * 0.12);
+        });
+      } catch (e) {
+        console.warn("Audio error:", e);
+      }
+    }
+
+    function playWrongSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.linearRampToValueAtTime(110, now + 0.22);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.22);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.22);
+      } catch (e) {
+        console.warn("Audio error:", e);
+      }
+    }
+
+    function playExplosionSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        // Generate filtered white noise burst
+        const bufferSize = ctx.sampleRate * 0.45;
+        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+        const whiteNoise = ctx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(700, now);
+        filter.frequency.exponentialRampToValueAtTime(50, now + 0.45);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+
+        whiteNoise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        whiteNoise.start(now);
+      } catch (e) {
+        console.warn("Audio error:", e);
+      }
+    }
+  </script>
+
+  <!-- ==================================================
+       START SCREEN
+       ================================================== -->
+  <div id="start-screen">
+    <h1>SAFETY QUEST XR</h1>
+    <p>Test your fire emergency readiness. Choose the correct action before dangerous objects reach the evacuation boundary.</p>
+    <div class="btn-group">
+      <button id="btn-enter-mr" class="action-button btn-mr" style="display: none;">ENTER MIXED REALITY</button>
+      <button id="btn-play-desktop" class="action-button btn-desktop">PLAY DESKTOP VERSION</button>
+    </div>
+  </div>
+
+  <!-- ==================================================
+       DESKTOP 2D PLAYING VIEW
+       ================================================== -->
+  <div id="desktop-container">
+    <div id="desktop-header">
+      <div class="hud-pill" id="desktop-score">Score: 0</div>
+      <div class="hud-pill" id="desktop-timer">Time: 60s</div>
+      <button id="btn-desktop-stop">STOP GAME</button>
+    </div>
+
+    <div id="desktop-question-card">
+      <div id="desktop-q-text">Safety Question</div>
+      <div id="desktop-feedback"></div>
+    </div>
+
+    <div id="danger-zone-line"></div>
+    <div id="danger-zone-label">Danger Zone</div>
+
+    <div id="desktop-spawn-area"></div>
+  </div>
+
+  <!-- ==================================================
+       GAME OVER MODAL (DESKTOP & VR FALLBACK)
+       ================================================== -->
+  <div id="game-over-screen">
+    <h2>CHALLENGE COMPLETE</h2>
+    <div class="result-stat" id="final-score-text">Your Score: <span>0</span></div>
+    <div class="result-stat" id="final-time-text">Time Taken: <span>0</span> seconds</div>
+    <button id="btn-restart" class="action-button">PLAY AGAIN</button>
+  </div>
+
+  <!-- ==================================================
+       A-FRAME WEBXR SCENE
+       ================================================== -->
+  <!-- WebXR Immersive-AR Configuration -->
+  <a-scene
+    id="xr-scene"
+    embedded
+    style="width: 100%; height: 100%; position: absolute; top:0; left:0; z-index: 1;"
+    xr-mode-ui="enabled: false"
+    webxr="optionalFeatures: hit-test, local-floor; referenceSpaceType: local-floor">
+
+    <!-- ASSET MANAGEMENT -->
+    <a-assets timeout="10000">
+      <!-- CHANGE 3D MODEL FILES HERE -->
+      <a-asset-item id="extinguisher-glb" src="assets/fire-extinguisher.glb"></a-asset-item>
+      <a-asset-item id="helmet-glb" src="assets/helmet.glb"></a-asset-item>
+      <a-asset-item id="cone-glb" src="assets/safety-cone.glb"></a-asset-item>
+    </a-assets>
+
+    <!-- LIGHTING: Ambient white light + at least 2 directional lights -->
+    <a-entity light="type: ambient; color: #ffffff; intensity: 0.9;"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 0.8; castShadow: false;" position="2 4 2"></a-entity>
+    <a-entity light="type: directional; color: #93c5fd; intensity: 0.6; castShadow: false;" position="-2 3 -1"></a-entity>
+
+    <!-- CAMERA RIG -->
+    <a-entity id="rig" position="0 0 0">
+      <a-camera id="head" position="0 1.6 0" look-controls="pointerLockEnabled: false"></a-camera>
+
+      <!-- QUEST CONTROLLER: RIGHT HAND WITH RAYCASTER -->
+      <a-entity
+        id="rightHand"
+        meta-touch-controls="hand: right"
+        oculus-touch-controls="hand: right"
+        raycaster="objects: .shootable; showLine: true; far: 15; lineColor: #00e5ff; lineOpacity: 0.9;"
+        laser-controls="hand: right">
+      </a-entity>
+    </a-entity>
+
+    <!-- DYNAMIC XR GAME ENVIRONMENT ROOT -->
+    <a-entity id="xr-game-root" position="0 0 0">
+      <!-- TOP HUD: SCORE, TIMER, BUTTONS -->
+      <a-entity id="xr-hud" position="0 2.45 -1.9">
+        <!-- Background Banner -->
+        <a-plane width="1.6" height="0.22" color="#0f172a" material="opacity: 0.85; transparent: true"></a-plane>
+
+        <!-- Score readout -->
+        <a-text id="xr-score-text" value="SCORE: 0" position="-0.7 0 0.02" color="#38bdf8" width="2.4" font="kelsonsans" align="left" baseline="center"></a-text>
+
+        <!-- Timer readout -->
+        <a-text id="xr-timer-text" value="TIME: 60s" position="0.7 0 0.02" color="#f59e0b" width="2.4" font="kelsonsans" align="right" baseline="center"></a-text>
+
+        <!-- STOP GAME BUTTON (RAYCAST SELECTABLE) -->
+        <a-entity id="xr-btn-stop" class="xr-action-holder" position="-0.22 0 0.01" data-action="stop">
+          <a-plane width="0.32" height="0.14" color="#dc2626" class="shootable"></a-plane>
+          <a-text value="STOP" position="0 0 0.02" align="center" width="1.8" color="#ffffff" font="kelsonsans" baseline="center"></a-text>
+        </a-entity>
+
+        <!-- EXIT XR BUTTON (RAYCAST SELECTABLE) -->
+        <a-entity id="xr-btn-exit" class="xr-action-holder" position="0.22 0 0.01" data-action="exit">
+          <a-plane width="0.32" height="0.14" color="#475569" class="shootable"></a-plane>
+          <a-text value="EXIT XR" position="0 0 0.02" align="center" width="1.8" color="#ffffff" font="kelsonsans" baseline="center"></a-text>
+        </a-entity>
+      </a-entity>
+
+      <!-- QUESTION DISPLAY BOARD (EYE-LEVEL TOP FIELD OF VIEW) -->
+      <a-entity id="xr-question-panel" position="0 2.05 -1.9">
+        <a-plane width="1.85" height="0.38" color="#090d16" material="opacity: 0.95; transparent: true;"></a-plane>
+        <!-- Blue accent border -->
+        <a-entity line="start: -0.925 0.19 0.01; end: 0.925 0.19 0.01; color: #38bdf8"></a-entity>
+        <a-entity line="start: -0.925 -0.19 0.01; end: 0.925 -0.19 0.01; color: #38bdf8"></a-entity>
+
+        <a-text
+          id="xr-question-text"
+          value="Preparing quiz..."
+          position="0 0.04 0.02"
+          width="1.7"
+          wrap-count="36"
+          align="center"
+          baseline="center"
+          color="#ffffff">
+        </a-text>
+
+        <!-- Inline feedback message (CORRECT / WRONG / TOO SLOW) -->
+        <a-text
+          id="xr-feedback-text"
+          value=""
+          position="0 -0.11 0.02"
+          width="1.5"
+          align="center"
+          baseline="center"
+          color="#34d399">
+        </a-text>
+      </a-entity>
+
+      <!-- DYNAMIC MOVING ANSWERS CONTAINER -->
+      <a-entity id="xr-answers-container"></a-entity>
+
+      <!-- EXPLOSION VISUAL FX SPHERE -->
+      <a-sphere
+        id="xr-explosion"
+        visible="false"
+        radius="0.1"
+        material="color: #f97316; emissive: #ef4444; emissiveIntensity: 0.8; opacity: 0.95; transparent: true">
+      </a-sphere>
+
+      <!-- XR GAME OVER SUMMARY BOARD -->
+      <a-entity id="xr-game-over-board" position="0 1.55 -1.8" visible="false">
+        <a-plane width="1.6" height="1.0" color="#090d16" material="opacity: 0.98; transparent: true;"></a-plane>
+        <a-text value="CHALLENGE COMPLETE" position="0 0.35 0.02" align="center" width="2.2" color="#38bdf8"></a-text>
+        <a-text id="xr-final-score" value="Your Score: 0" position="0 0.15 0.02" align="center" width="2.0" color="#ffffff"></a-text>
+        <a-text id="xr-final-time" value="Time Taken: 0 seconds" position="0 -0.02 0.02" align="center" width="1.8" color="#94a3b8"></a-text>
+
+        <!-- Raycast Selectable Restart Target in XR -->
+        <a-entity id="xr-btn-restart" class="xr-action-holder" position="0 -0.26 0.02" data-action="restart">
+          <a-plane width="0.8" height="0.16" color="#10b981" class="shootable"></a-plane>
+          <a-text value="PLAY AGAIN (or Press A)" position="0 0 0.02" align="center" width="1.7" color="#064e3b" font="kelsonsans" baseline="center"></a-text>
+        </a-entity>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <!-- ==================================================
+       CORE GAME LOGIC & XR CONTROLLER RAYCASTING
+       ================================================== -->
+  <script>
+    // ==================================================
+    // BEGINNER CUSTOMISATION: CONFIGURATION CONSTANTS
+    // ==================================================
+
+    // CHANGE GAME DURATION HERE (seconds)
+    const GAME_MAX_DURATION = 60;
+
+    // CHANGE POINTS HERE
+    const POINTS_CORRECT = 10;
+    const POINTS_WRONG = -5;
+    const POINTS_TIMEOUT = -5;
+
+    // CHANGE TARGET SIZE HERE (metres for XR)
+    const XR_ANSWER_WIDTH = 0.40;
+    const XR_ANSWER_HEIGHT = 0.18;
+    const XR_ANSWER_DEPTH = 0.04;
+
+    // CHANGE XR AIM ASSIST HERE (Hitbox dimensions)
+    const HITBOX_WIDTH = 0.54;
+    const HITBOX_HEIGHT = 0.30;
+    const HITBOX_DEPTH = 0.18;
+
+    // CHANGE RANDOM DROP DELAY HERE (seconds)
+    const DROP_DELAY_MIN = 0.0;
+    const DROP_DELAY_MAX = 1.8;
+
+    // CHANGE FALL SPEED HERE (Duration in seconds to reach danger line)
+    const DROP_DURATION_MIN = 4.5;
+    const DROP_DURATION_MAX = 8.0;
+
+    // CHANGE TARGET COLOUR HERE
+    const COLOR_NORMAL = "#1e293b";
+    const COLOR_HIGHLIGHT = "#00e5ff";
+    const COLOR_DISABLED = "#334155";
+
+    // CHANGE 3D MODEL FILES HERE
+    const MODEL_FILES = {
+      extinguisher: "assets/fire-extinguisher.glb",
+      helmet: "assets/helmet.glb",
+      cone: "assets/safety-cone.glb"
+    };
+
+    // ==================================================
+    // QUIZ CONTENT (6 QUESTIONS)
+    // ==================================================
+    const QUIZ_QUESTIONS = [
+      {
+        id: 1,
+        text: "A fire is too large to put out safely. What should you do?",
+        is3D: false,
+        correct: { text: "Alert others, call 995 and activate the alarm.", type: "alarm" },
+        wrong: [
+          { text: "Use the lift to leave quickly.", type: "lift" },
+          { text: "Go back for your belongings.", type: "bag" }
+        ],
+        explanation: "Never fight an uncontrollable fire. Evacuate immediately and dial 995."
+      },
+      {
+        id: 2,
+        text: "During a fire evacuation, which route should you use?",
+        is3D: false,
+        correct: { text: "Exit stairs.", type: "stairs" },
+        wrong: [
+          { text: "Passenger lift.", type: "lift" },
+          { text: "Stay at your desk.", type: "chair" }
+        ],
+        explanation: "Always take exit stairs. Lifts may lose power or become smoke traps."
+      },
+      {
+        id: 3,
+        text: "Which number should you call to inform SCDF of a fire?",
+        is3D: false,
+        correct: { text: "995.", type: "phone" },
+        wrong: [
+          { text: "999", type: "phone" },
+          { text: "1777", type: "phone" }
+        ],
+        explanation: "995 is Singapore's dedicated emergency fire and ambulance hotline."
+      },
+      {
+        id: 4,
+        text: "Which should you NEVER use on burning electrical equipment?",
+        is3D: false,
+        correct: { text: "Water.", type: "water" },
+        wrong: [
+          { text: "Suitable dry powder extinguisher.", type: "extinguisher_geo" },
+          { text: "Suitable CO2 extinguisher.", type: "extinguisher_geo" }
+        ],
+        explanation: "Water conducts electricity and exposes the operator to severe electrocution."
+      },
+      {
+        id: 5,
+        text: "Spot the fire-safety problem.",
+        is3D: false,
+        correct: { text: "Boxes blocking the exit.", type: "boxes" },
+        wrong: [
+          { text: "Chair away from the exit.", type: "chair" },
+          { text: "Plant away from the exit.", type: "plant" }
+        ],
+        explanation: "Obstructions in egress corridors prevent fast, safe evacuation."
+      },
+      {
+        id: 6,
+        text: "Choose the 3D model that represents fire-fighting equipment.",
+        is3D: true,
+        correct: { text: "Fire extinguisher.", modelKey: "extinguisher" },
+        wrong: [
+          { text: "Safety helmet.", modelKey: "helmet" },
+          { text: "Safety cone.", modelKey: "cone" }
+        ],
+        explanation: "Portable fire extinguishers can knock down small initial fires."
+      }
+    ];
+
+    // ==================================================
+    // GLOBAL STATE VARIABLES
+    // ==================================================
+    let gameActive = false;
+    let isXRMode = false;
+    let currentScore = 0;
+    let gameStartTime = 0;
+    let gameTimerInterval = null;
+    let elapsedSeconds = 0;
+
+    let questionSequence = [];
+    let currentQuestionIndex = 0;
+    let questionAnswered = false;
+
+    // Active movement trackers
+    let activeXRAnimations = [];
+    let activeDesktopAnimations = [];
+    let questionTimeoutTimer = null;
+    let advanceTimer = null;
+
+    // CRITICAL XR TARGET ARCHITECTURE
+    let currentXRTarget = null;
+    let currentXRHighlight = null;
+
+    // Helper: Fisher-Yates array shuffle
+    function shuffleArray(array) {
+      const arr = array.slice();
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // Helper: Random float between range
+    function randomBetween(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    // ==================================================
+    // APPLICATION STARTUP & CAPABILITY CHECK
+    // ==================================================
+    window.addEventListener("DOMContentLoaded", () => {
+      const btnEnterMR = document.getElementById("btn-enter-mr");
+      const btnPlayDesktop = document.getElementById("btn-play-desktop");
+
+      if (navigator.xr && navigator.xr.isSessionSupported) {
+        navigator.xr.isSessionSupported("immersive-ar")
+          .then((supported) => {
+            if (supported) {
+              btnEnterMR.style.display = "block";
+            }
+          })
+          .catch(() => {
+            // Keep default desktop only
+          });
+      }
+
+      btnPlayDesktop.addEventListener("click", () => {
+        getAudioContext();
+        startDesktopGame();
+      });
+
+      btnEnterMR.addEventListener("click", () => {
+        getAudioContext();
+        enterMixedRealitySession();
+      });
+
+      document.getElementById("btn-desktop-stop").addEventListener("click", () => {
+        stopGame();
+      });
+
+      document.getElementById("btn-restart").addEventListener("click", () => {
+        restartGame();
+      });
+
+      // Set up Quest Controller raycasting interactions
+      setupXRControllerInteractions();
+    });
+
+    // ==================================================
+    // MIXED REALITY SESSION HANDLING
+    // ==================================================
+    function enterMixedRealitySession() {
+      const sceneEl = document.getElementById("xr-scene");
+      document.getElementById("start-screen").style.display = "none";
+
+      if (sceneEl.hasLoaded) {
+        requestAR();
+      } else {
+        sceneEl.addEventListener("loaded", requestAR);
+      }
+
+      function requestAR() {
+        sceneEl.enterVR(); // A-Frame treats immersive-ar as enterVR when configured
+        isXRMode = true;
+        startNewGameSession();
+      }
+
+      sceneEl.addEventListener("exit-vr", () => {
+        isXRMode = false;
+        stopGame();
+        document.getElementById("desktop-container").style.display = "none";
+        document.getElementById("start-screen").style.display = "flex";
+      });
+    }
+
+    function exitMixedRealitySession() {
+      const sceneEl = document.getElementById("xr-scene");
+      if (sceneEl && sceneEl.is("vr-mode")) {
+        sceneEl.exitVR();
+      }
+      stopGame();
+      document.getElementById("game-over-screen").style.display = "none";
+      document.getElementById("start-screen").style.display = "flex";
+    }
+
+    // ==================================================
+    // CRITICAL XR CONTROLLER & TARGET INTERACTION ARCHITECTURE
+    // ==================================================
+    function setupXRControllerInteractions() {
+      const rightHand = document.getElementById("rightHand");
+
+      // 1. Controller ray reaches an invisible hitbox (.shootable)
+      rightHand.addEventListener("raycaster-intersection", (evt) => {
+        const els = evt.detail.els;
+        if (!els || els.length === 0) return;
+
+        // Choose the closest valid shootable target
+        const candidate = els[0];
+        if (!candidate.classList.contains("shootable")) return;
+
+        // Store target authoritatively
+        currentXRTarget = candidate;
+
+        // Remove previous highlight if present
+        clearCurrentXRHighlight();
+
+        // Check if candidate belongs to an answer holder
+        const answerHolder = candidate.closest(".xr-answer-holder");
+        if (answerHolder) {
+          if (answerHolder.dataset.disabled === "true") return;
+          const outline = answerHolder.querySelector(".xr-selection-outline");
+          if (outline) {
+            outline.setAttribute("visible", "true");
+            currentXRHighlight = outline;
+          }
+          return;
+        }
+
+        // Check if candidate belongs to a UI action button (Stop, Exit, Restart)
+        const actionHolder = candidate.closest(".xr-action-holder");
+        if (actionHolder) {
+          const plane = actionHolder.querySelector("a-plane");
+          if (plane) {
+            plane.setAttribute("material", "color", "#38bdf8");
+            currentXRHighlight = plane;
+          }
+        }
+      });
+
+      // 2. Ray leaves target
+      rightHand.addEventListener("raycaster-intersection-cleared", (evt) => {
+        const clearedEls = evt.detail.clearedEls;
+        if (clearedEls && currentXRTarget && clearedEls.includes(currentXRTarget)) {
+          clearCurrentXRHighlight();
+          currentXRTarget = null;
+        }
+      });
+
+      // 3. User pulls index trigger (triggerdown)
+      rightHand.addEventListener("triggerdown", () => {
+        if (!currentXRTarget) return;
+
+        playShootSound();
+
+        // Case A: Answer Selection
+        const answerHolder = currentXRTarget.closest(".xr-answer-holder");
+        if (answerHolder) {
+          if (answerHolder.dataset.disabled === "true" || questionAnswered) {
+            return;
+          }
+          const isCorrect = (answerHolder.dataset.correct === "true");
+          handleAnswerSelection(isCorrect, answerHolder);
+          return;
+        }
+
+        // Case B: Action UI Button (Stop, Exit, Restart)
+        const actionHolder = currentXRTarget.closest(".xr-action-holder");
+        if (actionHolder) {
+          const action = actionHolder.dataset.action;
+          if (action === "stop") {
+            stopGame();
+          } else if (action === "exit") {
+            exitMixedRealitySession();
+          } else if (action === "restart") {
+            restartGame();
+          }
+        }
+      });
+
+      // 4. Quest 'A' button listener for instant restart
+      rightHand.addEventListener("abuttondown", () => {
+        if (!gameActive) {
+          restartGame();
+        }
+      });
+    }
+
+    function clearCurrentXRHighlight() {
+      if (currentXRHighlight) {
+        if (currentXRHighlight.tagName.toLowerCase() === "a-box" || currentXRHighlight.classList.contains("xr-selection-outline")) {
+          currentXRHighlight.setAttribute("visible", "false");
+        } else if (currentXRHighlight.tagName.toLowerCase() === "a-plane") {
+          // Reset UI button default colors
+          const holder = currentXRHighlight.closest(".xr-action-holder");
+          if (holder) {
+            const act = holder.dataset.action;
+            if (act === "stop") currentXRHighlight.setAttribute("material", "color", "#dc2626");
+            else if (act === "exit") currentXRHighlight.setAttribute("material", "color", "#475569");
+            else if (act === "restart") currentXRHighlight.setAttribute("material", "color", "#10b981");
+          }
+        }
+        currentXRHighlight = null;
+      }
+    }
+
+    // ==================================================
+    // GAME SESSION MANAGEMENT
+    // ==================================================
+    function startDesktopGame() {
+      isXRMode = false;
+      document.getElementById("start-screen").style.display = "none";
+      document.getElementById("desktop-container").style.display = "block";
+      startNewGameSession();
+    }
+
+    function startNewGameSession() {
+      gameActive = true;
+      currentScore = 0;
+      elapsedSeconds = 0;
+      gameStartTime = performance.now();
+      questionAnswered = false;
+
+      // Reshuffle questions using Fisher-Yates
+      questionSequence = shuffleArray(QUIZ_QUESTIONS);
+      currentQuestionIndex = 0;
+
+      updateHUDScore(currentScore);
+      updateHUDTimer(GAME_MAX_DURATION);
+
+      // Hide game-over views
+      document.getElementById("game-over-screen").style.display = "none";
+      const xrGameOver = document.getElementById("xr-game-over-board");
+      if (xrGameOver) xrGameOver.setAttribute("visible", "false");
+
+      // Clear any remaining timers
+      clearInterval(gameTimerInterval);
+      clearTimeout(questionTimeoutTimer);
+      clearTimeout(advanceTimer);
+
+      // Start 60-second game countdown loop
+      gameTimerInterval = setInterval(() => {
+        const now = performance.now();
+        elapsedSeconds = Math.floor((now - gameStartTime) / 1000);
+        const remaining = Math.max(0, GAME_MAX_DURATION - elapsedSeconds);
+        updateHUDTimer(remaining);
+
+        if (remaining <= 0) {
+          stopGame();
+        }
+      }, 500);
+
+      loadQuestion(questionSequence[currentQuestionIndex]);
+    }
+
+    function restartGame() {
+      clearAllActiveTargets();
+      clearCurrentXRHighlight();
+      currentXRTarget = null;
+      startNewGameSession();
+    }
+
+    function stopGame() {
+      if (!gameActive && elapsedSeconds > 0) return;
+      gameActive = false;
+      clearInterval(gameTimerInterval);
+      clearTimeout(questionTimeoutTimer);
+      clearTimeout(advanceTimer);
+
+      clearAllActiveTargets();
+      clearCurrentXRHighlight();
+      currentXRTarget = null;
+
+      const finalElapsed = Math.min(GAME_MAX_DURATION, Math.max(1, elapsedSeconds));
+
+      if (isXRMode) {
+        // Display XR summary card
+        const xrBoard = document.getElementById("xr-game-over-board");
+        const xrScoreText = document.getElementById("xr-final-score");
+        const xrTimeText = document.getElementById("xr-final-time");
+        if (xrBoard && xrScoreText && xrTimeText) {
+          xrScoreText.setAttribute("value", `Your Score: ${currentScore}`);
+          xrTimeText.setAttribute("value", `Time Taken: ${finalElapsed} seconds`);
+          xrBoard.setAttribute("visible", "true");
+        }
+      } else {
+        // Display Desktop summary modal
+        document.getElementById("final-score-text").innerHTML = `Your Score: <span>${currentScore}</span>`;
+        document.getElementById("final-time-text").innerHTML = `Time Taken: <span>${finalElapsed}</span> seconds`;
+        document.getElementById("game-over-screen").style.display = "flex";
+      }
+    }
+
+    function updateHUDScore(score) {
+      document.getElementById("desktop-score").textContent = `Score: ${score}`;
+      const xrScore = document.getElementById("xr-score-text");
+      if (xrScore) xrScore.setAttribute("value", `SCORE: ${score}`);
+    }
+
+    function updateHUDTimer(seconds) {
+      document.getElementById("desktop-timer").textContent = `Time: ${seconds}s`;
+      const xrTimer = document.getElementById("xr-timer-text");
+      if (xrTimer) xrTimer.setAttribute("value", `TIME: ${seconds}s`);
+    }
+
+    // ==================================================
+    // QUESTION RUNTIME & MOVING SPAWNER
+    // ==================================================
+    function loadQuestion(qData) {
+      if (!gameActive) return;
+
+      questionAnswered = false;
+      clearAllActiveTargets();
+      clearCurrentXRHighlight();
+      currentXRTarget = null;
+
+      // Update question text
+      document.getElementById("desktop-q-text").textContent = qData.text;
+      document.getElementById("desktop-feedback").textContent = "";
+
+      const xrQText = document.getElementById("xr-question-text");
+      const xrFeedback = document.getElementById("xr-feedback-text");
+      if (xrQText) xrQText.setAttribute("value", qData.text);
+      if (xrFeedback) xrFeedback.setAttribute("value", "");
+
+      // Prepare answer objects
+      const answers = [
+        { isCorrect: true, text: qData.correct.text, data: qData.correct },
+        { isCorrect: false, text: qData.wrong[0].text, data: qData.wrong[0] },
+        { isCorrect: false, text: qData.wrong[1].text, data: qData.wrong[1] }
+      ];
+
+      // Shuffle answers
+      const shuffledAnswers = shuffleArray(answers);
+
+      // THREE NON-OVERLAPPING SPAWN LANES
+      // LEFT: -0.85 to -0.40, CENTRE: -0.20 to +0.20, RIGHT: +0.40 to +0.85
+      const xrLanes = [
+        { min: -0.85, max: -0.40 },
+        { min: -0.20, max: 0.20 },
+        { min: 0.40, max: 0.85 }
+      ];
+      const shuffledXRLanes = shuffleArray(xrLanes);
+
+      const desktopLanes = [
+        { min: 10, max: 32 },  // percentage across screen
+        { min: 38, max: 62 },
+        { min: 68, max: 90 }
+      ];
+      const shuffledDesktopLanes = shuffleArray(desktopLanes);
+
+      const arrivalTimes = [];
+
+      shuffledAnswers.forEach((ans, idx) => {
+        // Random motion parameters
+        const delay = randomBetween(DROP_DELAY_MIN, DROP_DELAY_MAX);
+        const duration = randomBetween(DROP_DURATION_MIN, DROP_DURATION_MAX);
+        arrivalTimes.push(delay + duration);
+
+        if (isXRMode) {
+          // Compute XR coordinates
+          const lane = shuffledXRLanes[idx];
+          const startX = randomBetween(lane.min, lane.max);
+          const startY = randomBetween(1.70, 1.82); // Directly below question board
+          const startZ = -1.9;
+
+          let endX = startX + randomBetween(-0.45, 0.45);
+          endX = Math.max(-1.05, Math.min(1.05, endX)); // Clamped
+          const endY = -0.55; // Danger zone lower boundary
+          const endZ = startZ + randomBetween(-0.20, 0.15);
+
+          createXRAnswerTarget(ans, qData.is3D, { startX, startY, startZ, endX, endY, endZ, delay, duration });
+        } else {
+          // Compute Desktop coordinates (percentages and viewport pixels)
+          const dLane = shuffledDesktopLanes[idx];
+          const startX = randomBetween(dLane.min, dLane.max);
+          const startY = 170; // pixels below top bar
+
+          const drift = randomBetween(-15, 15);
+          const endX = Math.max(5, Math.min(85, startX + drift));
+          const endY = window.innerHeight - 100;
+
+          createDesktopAnswerTarget(ans, { startX, startY, endX, endY, delay, duration });
+        }
+      });
+
+      // TIMEOUT RULE: earliest arrival triggers timeout
+      const earliestArrival = Math.min(...arrivalTimes);
+      questionTimeoutTimer = setTimeout(() => {
+        if (!questionAnswered && gameActive) {
+          handleTimeout();
+        }
+      }, earliestArrival * 1000);
+    }
+
+    // ==================================================
+    // XR ANSWER CREATION & GEOMETRIC/GLB ICONS
+    // ==================================================
+    function createXRAnswerTarget(answerItem, is3DModelQuestion, motion) {
+      const container = document.getElementById("xr-answers-container");
+
+      // Root Holder for this answer
+      const holder = document.createElement("a-entity");
+      holder.classList.add("xr-answer-holder");
+      holder.dataset.correct = answerItem.isCorrect ? "true" : "false";
+      holder.dataset.disabled = "false";
+      holder.setAttribute("position", `${motion.startX} ${motion.startY} ${motion.startZ}`);
+
+      // 1. VISIBLE ANSWER CARD
+      const visibleCard = document.createElement("a-entity");
+      visibleCard.classList.add("visible-card");
+
+      // Background plate
+      const bgPlane = document.createElement("a-plane");
+      bgPlane.setAttribute("width", XR_ANSWER_WIDTH);
+      bgPlane.setAttribute("height", XR_ANSWER_HEIGHT);
+      bgPlane.setAttribute("color", COLOR_NORMAL);
+      bgPlane.setAttribute("material", "opacity: 0.92; transparent: true;");
+      visibleCard.appendChild(bgPlane);
+
+      // Icon or 3D Model
+      if (is3DModelQuestion) {
+        const glbKey = answerItem.data.modelKey;
+        const modelEntity = document.createElement("a-entity");
+        modelEntity.setAttribute("gltf-model", `#${glbKey}-glb`);
+        modelEntity.setAttribute("position", "-0.11 0 0.05");
+        modelEntity.setAttribute("scale", "0.12 0.12 0.12");
+        // Fallback geometric representation if external asset is missing
+        modelEntity.addEventListener("model-error", () => {
+          console.warn("GLB model failed to load, falling back to procedural representation.");
+          const fallback = createProceduralIcon(glbKey);
+          fallback.setAttribute("position", "-0.11 0 0.05");
+          visibleCard.appendChild(fallback);
+        });
+        visibleCard.appendChild(modelEntity);
+      } else {
+        const iconEntity = createProceduralIcon(answerItem.data.type);
+        iconEntity.setAttribute("position", "-0.11 0 0.05");
+        visibleCard.appendChild(iconEntity);
+      }
+
+      // Label Text
+      const textEntity = document.createElement("a-text");
+      textEntity.setAttribute("value", answerItem.text);
+      textEntity.setAttribute("position", "0.03 0 0.02");
+      textEntity.setAttribute("width", 0.32);
+      textEntity.setAttribute("wrap-count", 15);
+      textEntity.setAttribute("align", "center");
+      textEntity.setAttribute("baseline", "center");
+      textEntity.setAttribute("color", "#ffffff");
+      visibleCard.appendChild(textEntity);
+
+      // 2. INVISIBLE AIM-ASSIST HITBOX (Larger than visible card)
+      const hitbox = document.createElement("a-box");
+      hitbox.classList.add("shootable");
+      hitbox.setAttribute("width", HITBOX_WIDTH);
+      hitbox.setAttribute("height", HITBOX_HEIGHT);
+      hitbox.setAttribute("depth", HITBOX_DEPTH);
+      hitbox.setAttribute("material", "opacity: 0.001; transparent: true; depthWrite: false;");
+      hitbox.setAttribute("position", "0 0 0");
+
+      // 3. SELECTION OUTLINE (Cyan outline matching VISIBLE card bounds)
+      const outline = document.createElement("a-entity");
+      outline.classList.add("xr-selection-outline");
+      outline.setAttribute("visible", "false");
+
+      const halfW = XR_ANSWER_WIDTH / 2;
+      const halfH = XR_ANSWER_HEIGHT / 2;
+      const zOffset = 0.015;
+      const c = COLOR_HIGHLIGHT;
+
+      outline.setAttribute("line__t", `start: ${-halfW} ${halfH} ${zOffset}; end: ${halfW} ${halfH} ${zOffset}; color: ${c}`);
+      outline.setAttribute("line__b", `start: ${-halfW} ${-halfH} ${zOffset}; end: ${halfW} ${-halfH} ${zOffset}; color: ${c}`);
+      outline.setAttribute("line__l", `start: ${-halfW} ${-halfH} ${zOffset}; end: ${-halfW} ${halfH} ${zOffset}; color: ${c}`);
+      outline.setAttribute("line__r", `start: ${halfW} ${-halfH} ${zOffset}; end: ${halfW} ${halfH} ${zOffset}; color: ${c}`);
+
+      // Assemble hierarchy
+      holder.appendChild(visibleCard);
+      holder.appendChild(hitbox);
+      holder.appendChild(outline);
+      container.appendChild(holder);
+
+      // Register independent movement animation loop
+      const animData = {
+        element: holder,
+        motion: motion,
+        startTime: performance.now() + motion.delay * 1000,
+        endTime: performance.now() + (motion.delay + motion.duration) * 1000
+      };
+      activeXRAnimations.push(animData);
+    }
+
+    // A-Frame Geometric Procedural Icons (Avoids Quest emoji rendering bugs)
+    function createProceduralIcon(type) {
+      const iconGroup = document.createElement("a-entity");
+      iconGroup.setAttribute("scale", "0.6 0.6 0.6");
+
+      if (type === "extinguisher" || type === "extinguisher_geo") {
+        // Red cylinder + dark handle
+        const cyl = document.createElement("a-cylinder");
+        cyl.setAttribute("radius", "0.035");
+        cyl.setAttribute("height", "0.11");
+        cyl.setAttribute("color", "#e11d48");
+        const handle = document.createElement("a-box");
+        handle.setAttribute("width", "0.04");
+        handle.setAttribute("height", "0.02");
+        handle.setAttribute("depth", "0.02");
+        handle.setAttribute("position", "0 0.065 0");
+        handle.setAttribute("color", "#1e293b");
+        iconGroup.appendChild(cyl);
+        iconGroup.appendChild(handle);
+      } else if (type === "water") {
+        // Blue sphere/drop
+        const drop = document.createElement("a-sphere");
+        drop.setAttribute("radius", "0.05");
+        drop.setAttribute("color", "#38bdf8");
+        iconGroup.appendChild(drop);
+      } else if (type === "stairs") {
+        // Stepped boxes
+        [-0.03, 0, 0.03].forEach((x, i) => {
+          const step = document.createElement("a-box");
+          step.setAttribute("width", "0.025");
+          step.setAttribute("height", `${0.03 * (i + 1)}`);
+          step.setAttribute("depth", "0.04");
+          step.setAttribute("position", `${x} ${-0.03 + (0.015 * i)} 0`);
+          step.setAttribute("color", "#94a3b8");
+          iconGroup.appendChild(step);
+        });
+      } else if (type === "alarm") {
+        // Red box + yellow indicator
+        const box = document.createElement("a-box");
+        box.setAttribute("width", "0.07");
+        box.setAttribute("height", "0.07");
+        box.setAttribute("depth", "0.02");
+        box.setAttribute("color", "#dc2626");
+        const light = document.createElement("a-sphere");
+        light.setAttribute("radius", "0.016");
+        light.setAttribute("position", "0 0 0.015");
+        light.setAttribute("color", "#fbbf24");
+        iconGroup.appendChild(box);
+        iconGroup.appendChild(light);
+      } else if (type === "boxes") {
+        // Brown cubes
+        const b1 = document.createElement("a-box");
+        b1.setAttribute("width", "0.05");
+        b1.setAttribute("height", "0.05");
+        b1.setAttribute("depth", "0.05");
+        b1.setAttribute("color", "#b45309");
+        b1.setAttribute("position", "-0.015 -0.015 0");
+        const b2 = document.createElement("a-box");
+        b2.setAttribute("width", "0.04");
+        b2.setAttribute("height", "0.04");
+        b2.setAttribute("depth", "0.04");
+        b2.setAttribute("color", "#d97706");
+        b2.setAttribute("position", "0.02 0.02 0.01");
+        iconGroup.appendChild(b1);
+        iconGroup.appendChild(b2);
+      } else if (type === "chair") {
+        // Box chair
+        const seat = document.createElement("a-box");
+        seat.setAttribute("width", "0.06");
+        seat.setAttribute("height", "0.01");
+        seat.setAttribute("depth", "0.06");
+        seat.setAttribute("color", "#64748b");
+        const back = document.createElement("a-box");
+        back.setAttribute("width", "0.06");
+        back.setAttribute("height", "0.07");
+        back.setAttribute("depth", "0.01");
+        back.setAttribute("position", "0 0.035 -0.025");
+        back.setAttribute("color", "#475569");
+        iconGroup.appendChild(seat);
+        iconGroup.appendChild(back);
+      } else if (type === "helmet") {
+        // Yellow safety dome
+        const dome = document.createElement("a-sphere");
+        dome.setAttribute("radius", "0.05");
+        dome.setAttribute("theta-length", "90");
+        dome.setAttribute("color", "#facc15");
+        iconGroup.appendChild(dome);
+      } else if (type === "cone") {
+        // Orange safety cone
+        const cone = document.createElement("a-cone");
+        cone.setAttribute("radius-bottom", "0.045");
+        cone.setAttribute("radius-top", "0.01");
+        cone.setAttribute("height", "0.09");
+        cone.setAttribute("color", "#f97316");
+        iconGroup.appendChild(cone);
+      } else {
+        // Generic phone/sign indicator
+        const gen = document.createElement("a-sphere");
+        gen.setAttribute("radius", "0.04");
+        gen.setAttribute("color", "#06b6d4");
+        iconGroup.appendChild(gen);
+      }
+
+      return iconGroup;
+    }
+
+    // ==================================================
+    // DESKTOP ANSWER CREATION
+    // ==================================================
+    function createDesktopAnswerTarget(answerItem, motion) {
+      const container = document.getElementById("desktop-spawn-area");
+      const div = document.createElement("div");
+      div.className = "desktop-answer-target";
+      div.textContent = answerItem.text;
+      div.dataset.correct = answerItem.isCorrect ? "true" : "false";
+      div.dataset.disabled = "false";
+
+      // Set initial position
+      div.style.left = `${motion.startX}%`;
+      div.style.top = `${motion.startY}px`;
+
+      div.addEventListener("click", () => {
+        if (div.dataset.disabled === "true" || questionAnswered) return;
+        playShootSound();
+        const isCorrect = (div.dataset.correct === "true");
+        handleAnswerSelection(isCorrect, div);
+      });
+
+      container.appendChild(div);
+
+      const animData = {
+        element: div,
+        motion: motion,
+        startTime: performance.now() + motion.delay * 1000,
+        endTime: performance.now() + (motion.delay + motion.duration) * 1000
+      };
+      activeDesktopAnimations.push(animData);
+    }
+
+    // ==================================================
+    // FRAME-BASED ANIMATION LOOP
+    // ==================================================
+    function animationLoop(timestamp) {
+      // 1. XR Animations
+      for (let i = activeXRAnimations.length - 1; i >= 0; i--) {
+        const item = activeXRAnimations[i];
+        if (timestamp < item.startTime) continue;
+
+        const progress = Math.min(1.0, (timestamp - item.startTime) / (item.motion.duration * 1000));
+        const m = item.motion;
+
+        const currentX = m.startX + (m.endX - m.startX) * progress;
+        const currentY = m.startY + (m.endY - m.startY) * progress;
+        const currentZ = m.startZ + (m.endZ - m.startZ) * progress;
+
+        item.element.setAttribute("position", `${currentX} ${currentY} ${currentZ}`);
+      }
+
+      // 2. Desktop Animations
+      for (let i = activeDesktopAnimations.length - 1; i >= 0; i--) {
+        const item = activeDesktopAnimations[i];
+        if (timestamp < item.startTime) continue;
+
+        const progress = Math.min(1.0, (timestamp - item.startTime) / (item.motion.duration * 1000));
+        const m = item.motion;
+
+        const curX = m.startX + (m.endX - m.startX) * progress;
+        const curY = m.startY + (m.endY - m.startY) * progress;
+
+        item.element.style.left = `${curX}%`;
+        item.element.style.top = `${curY}px`;
+      }
+
+      requestAnimationFrame(animationLoop);
+    }
+    requestAnimationFrame(animationLoop);
+
+    // ==================================================
+    // ANSWER SELECTION & SCORING LOGIC
+    // ==================================================
+    function handleAnswerSelection(isCorrect, answerElement) {
+      if (questionAnswered) return;
+
+      if (isCorrect) {
+        questionAnswered = true;
+        clearTimeout(questionTimeoutTimer);
+        currentScore += POINTS_CORRECT;
+        updateHUDScore(currentScore);
+        playCorrectSound();
+
+        const q = questionSequence[currentQuestionIndex];
+        const feedbackMsg = `CORRECT +10! ${q.explanation}`;
+
+        if (isXRMode) {
+          const xrFeedback = document.getElementById("xr-feedback-text");
+          if (xrFeedback) {
+            xrFeedback.setAttribute("value", feedbackMsg);
+            xrFeedback.setAttribute("color", "#34d399");
+          }
+        } else {
+          const dFeedback = document.getElementById("desktop-feedback");
+          dFeedback.textContent = feedbackMsg;
+          dFeedback.style.color = "#34d399";
+        }
+
+        // Wait 1.8 seconds then advance
+        advanceTimer = setTimeout(() => {
+          advanceToNextQuestion();
+        }, 1800);
+
+      } else {
+        // WRONG ANSWER
+        currentScore += POINTS_WRONG;
+        updateHUDScore(currentScore);
+        playWrongSound();
+
+        const wrongMsg = "WRONG -5! Try again.";
+        if (isXRMode) {
+          const xrFeedback = document.getElementById("xr-feedback-text");
+          if (xrFeedback) {
+            xrFeedback.setAttribute("value", wrongMsg);
+            xrFeedback.setAttribute("color", "#f87171");
+          }
+          // Disable only this target
+          answerElement.dataset.disabled = "true";
+          const visibleCard = answerElement.querySelector(".visible-card a-plane");
+          if (visibleCard) visibleCard.setAttribute("color", COLOR_DISABLED);
+          clearCurrentXRHighlight();
+          currentXRTarget = null;
+        } else {
+          const dFeedback = document.getElementById("desktop-feedback");
+          dFeedback.textContent = wrongMsg;
+          dFeedback.style.color = "#f87171";
+          answerElement.dataset.disabled = "true";
+          answerElement.classList.add("disabled");
+        }
+      }
+    }
+
+    // ==================================================
+    // TIMEOUT & EXPLOSION EFFECT
+    // ==================================================
+    function handleTimeout() {
+      questionAnswered = true;
+      currentScore += POINTS_TIMEOUT;
+      updateHUDScore(currentScore);
+      playExplosionSound();
+
+      const timeoutMsg = "TOO SLOW -5! Target reached the danger zone.";
+
+      if (isXRMode) {
+        const xrFeedback = document.getElementById("xr-feedback-text");
+        if (xrFeedback) {
+          xrFeedback.setAttribute("value", timeoutMsg);
+          xrFeedback.setAttribute("color", "#f97316");
+        }
+        triggerXRExplosionEffect();
+      } else {
+        const dFeedback = document.getElementById("desktop-feedback");
+        dFeedback.textContent = timeoutMsg;
+        dFeedback.style.color = "#f97316";
+        triggerDesktopExplosionEffect();
+      }
+
+      advanceTimer = setTimeout(() => {
+        advanceToNextQuestion();
+      }, 1600);
+    }
+
+    function triggerXRExplosionEffect() {
+      const exp = document.getElementById("xr-explosion");
+      if (!exp) return;
+      exp.setAttribute("position", "0 0.5 -1.8");
+      exp.setAttribute("visible", "true");
+      exp.setAttribute("scale", "0.3 0.3 0.3");
+
+      const startTime = performance.now();
+      const dur = 400; // ms
+
+      function stepExplosion(time) {
+        const p = (time - startTime) / dur;
+        if (p < 1.0) {
+          const s = 0.3 + p * 1.5;
+          exp.setAttribute("scale", `${s} ${s} ${s}`);
+          exp.setAttribute("material", "opacity", `${0.9 * (1.0 - p)}`);
+          requestAnimationFrame(stepExplosion);
+        } else {
+          exp.setAttribute("visible", "false");
+        }
+      }
+      requestAnimationFrame(stepExplosion);
+    }
+
+    function triggerDesktopExplosionEffect() {
+      const area = document.getElementById("desktop-spawn-area");
+      const exp = document.createElement("div");
+      exp.className = "desktop-explosion";
+      exp.style.left = "50%";
+      exp.style.top = `${window.innerHeight - 110}px`;
+      area.appendChild(exp);
+
+      requestAnimationFrame(() => {
+        exp.style.transform = "translate(-50%, -50%) scale(2.0)";
+        exp.style.opacity = "0";
+      });
+
+      setTimeout(() => {
+        if (exp.parentNode) exp.parentNode.removeChild(exp);
+      }, 450);
+    }
+
+    // ==================================================
+    // QUESTION PROGRESSION & CLEANUP
+    // ==================================================
+    function advanceToNextQuestion() {
+      currentQuestionIndex++;
+      if (currentQuestionIndex >= questionSequence.length) {
+        // All 6 completed
+        stopGame();
+      } else {
+        loadQuestion(questionSequence[currentQuestionIndex]);
+      }
+    }
+
+    function clearAllActiveTargets() {
+      activeXRAnimations = [];
+      activeDesktopAnimations = [];
+
+      // Clean XR DOM
+      const xrContainer = document.getElementById("xr-answers-container");
+      if (xrContainer) {
+        while (xrContainer.firstChild) {
+          xrContainer.removeChild(xrContainer.firstChild);
+        }
+      }
+
+      // Clean Desktop DOM
+      const dContainer = document.getElementById("desktop-spawn-area");
+      if (dContainer) {
+        dContainer.innerHTML = "";
+      }
+    }
+  </script>
+</body>
+</html>
