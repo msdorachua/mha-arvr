@@ -1,0 +1,234 @@
+<!-- ... existing code ... -->
+        floor.xb = { pointerEvents: 'none' };
+        this.add(floor);
+
+        // Floor Target Danger Zone Ring positioned under falling blocks
+        const ringGeo = new THREE.RingGeometry(0.8, 1.8, 32);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: 0xef4444,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.25
+        });
+        const dangerZone = new THREE.Mesh(ringGeo, ringMat);
+        dangerZone.rotation.x = -Math.PI / 2;
+        dangerZone.position.set(0, 0.02, -0.98);
+        dangerZone.xb = { pointerEvents: 'none' };
+        this.add(dangerZone);
+
+        // Particle Effects
+<!-- ... existing code ... -->
+      // --- Text Texture Generator for 3D Falling Blocks ---
+      function createAnswerCanvasTexture(text, isAlert = false) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+
+        // Background rounded box
+        ctx.fillStyle = isAlert ? '#3f0d12' : '#0f172a';
+        ctx.beginPath();
+        ctx.roundRect(16, 16, 992, 480, 40);
+        ctx.fill();
+
+        // Border
+        ctx.lineWidth = 16;
+        ctx.strokeStyle = isAlert ? '#ef4444' : '#38bdf8';
+        ctx.stroke();
+
+        // Top Tag
+        ctx.fillStyle = isAlert ? '#fca5a5' : '#7dd3fc';
+        ctx.font = 'bold 36px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('SELECT OPTION', 512, 82);
+
+        // Option Text with word wrapping and enlarged font
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 50px sans-serif';
+        ctx.textAlign = 'center';
+
+        const words = text.split(' ');
+        const lines = [];
+        let curLine = '';
+        for (const w of words) {
+          const testLine = curLine ? `${curLine} ${w}` : w;
+          if (ctx.measureText(testLine).width > 880) {
+            lines.push(curLine);
+            curLine = w;
+          } else {
+            curLine = testLine;
+          }
+        }
+        if (curLine) lines.push(curLine);
+
+        const startY = 245 - ((lines.length - 1) * 64) / 2;
+        lines.forEach((line, idx) => {
+          ctx.fillText(line, 512, startY + idx * 66);
+        });
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        return texture;
+      }
+
+      // --- Particle System for Hits and Smoke ---
+<!-- ... existing code ... -->
+          // Spatial Entities
+          this.fallingBlocks = [];
+          this.blockGeometry = new THREE.BoxGeometry(0.66, 0.32, 0.08);
+          this.blockMaterials = [];
+          this.particleFX = null;
+<!-- ... existing code ... -->
+            children: [
+              new xb.UIPanel({
+                style: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+                children: [
+                  new xb.UIIcon({ icon: 'timer', style: { width: 28, height: 28, color: '#38bdf8' } }),
+                  this.timerText
+                ]
+              }),
+              new xb.UIPanel({
+                style: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+                children: [
+                  new xb.UIIcon({ icon: 'stars', style: { width: 28, height: 28, color: '#4ade80' } }),
+                  this.scoreText
+                ]
+              }),
+              this.streakText
+            ]
+          });
+
+          this.questionText = new xb.UIText({
+            text: '🔥 Fire Safety Hazard Buster\nAim & shoot extinguisher spray at correct answers!',
+            style: {
+              fontSize: 28,
+              fontWeight: 'bold',
+              textAlign: 'center',
+              lineHeight: 1.35,
+              minHeight: 76,
+              color: '#ffffff',
+              padding: 10
+            }
+          });
+
+          const questionPanel = new xb.UIPanel({
+            style: {
+              width: '100%',
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              borderRadius: 16,
+              borderWidth: 2,
+              borderColor: '#f59e0b',
+              padding: 6,
+              justifyContent: 'center',
+              alignItems: 'center'
+            },
+            children: [this.questionText]
+          });
+
+          this.statusBanner = new xb.UIText({
+            text: 'Ready to train?',
+            style: {
+              fontSize: 18,
+              fontWeight: 'bold',
+              textAlign: 'center',
+              color: '#f8fafc',
+              backgroundColor: 'rgba(15, 23, 42, 0.85)',
+              padding: 8,
+              borderRadius: 10
+            }
+          });
+
+          this.pauseBtn = new xb.UIButton({
+            label: 'Start Challenge',
+            icon: 'play_arrow',
+            style: { flexGrow: 1 },
+            onClick: () => this.togglePlayPause()
+          });
+
+          const resetBtn = new xb.UIButton({
+            label: 'Reset',
+            icon: 'restart_alt',
+            style: { flexGrow: 0.8 },
+            onClick: () => this.resetGame()
+          });
+
+          const exitVRBtn = new xb.UIButton({
+            label: 'Exit VR',
+            icon: 'logout',
+            style: { flexGrow: 0.8 },
+            onClick: () => this.exitVRMode()
+          });
+
+          const controlsRow = new xb.UIPanel({
+            style: {
+              width: '100%',
+              flexDirection: 'row',
+              gap: 10,
+              justifyContent: 'center',
+              alignItems: 'center'
+            },
+            children: [this.pauseBtn, resetBtn, exitVRBtn]
+          });
+
+          this.hudCard = new xb.UICard({
+            size: { width: 0.96, height: 'auto' },
+            manipulation: false,
+            edge: false,
+            style: {
+              flexDirection: 'column',
+              gap: 12,
+              padding: 20,
+              backgroundColor: 'rgba(11, 16, 32, 0.96)',
+              borderRadius: 22,
+              borderColor: '#475569',
+              borderWidth: 2
+            },
+            children: [statsBar, questionPanel, this.statusBanner, controlsRow]
+          });
+
+          // Placed much nearer (z = -0.98m vs -1.35m) at eye level (y = 1.70m) for optimal VR clarity
+          this.hudCard.position.set(0, 1.70, -0.98);
+          this.add(this.hudCard);
+        }
+
+        togglePlayPause() {
+<!-- ... existing code ... -->
+          // Shuffle options so correct answer is not in predictable position
+          const shuffled = [...qData.options]
+            .map((opt) => ({ opt, sort: Math.random() }))
+            .sort((a, b) => a.sort - b.sort)
+            .map((item) => item.opt);
+
+          const xPositions = [-0.68, 0.0, 0.68];
+          shuffled.forEach((option, i) => {
+            const texture = createAnswerCanvasTexture(option.text);
+            const mat = new THREE.MeshStandardMaterial({
+              map: texture,
+              roughness: 0.3,
+              metalness: 0.2
+            });
+            this.blockMaterials.push(mat);
+
+            const block = new THREE.Mesh(this.blockGeometry, mat);
+            // Spawn blocks at closer distance z = -0.98 matching the HUD view plane
+            block.position.set(xPositions[i], 2.38 + (Math.random() * 0.12), -0.98);
+            block.userData = {
+              isAnswerBlock: true,
+              isCorrect: option.correct,
+              optionText: option.text,
+              fallSpeed: 0.22 + Math.random() * 0.04
+            };
+
+            // Enable XR Blocks raycasting interaction
+            block.xb = {
+              pointerEvents: 'auto',
+              reticleMode: 'auto'
+            };
+
+            this.add(block);
+            this.fallingBlocks.push(block);
+          });
+        }
+
+        // Handles trigger pulls from Meta Quest 3 controllers, hand pinches, or desktop clicks
+<!-- ... existing code ... -->
