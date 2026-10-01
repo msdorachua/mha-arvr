@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MHA XR Safety Challenge v2</title>
+<script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,sans-serif;background:#0b1220;color:white}
+#modeScreen{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0b1220,#18243d)}
+.card{width:min(700px,calc(100% - 40px));padding:36px;border-radius:22px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);text-align:center}
+button{border:0;border-radius:12px;padding:14px 24px;font-size:18px;font-weight:700;cursor:pointer;background:#22d3ee;color:#06202a}
+#pcGame{display:none;position:fixed;inset:0;background:radial-gradient(circle at center,#17233b,#0b1220);overflow:hidden}
+#pcHud{position:absolute;top:20px;left:50%;transform:translateX(-50%);width:min(900px,92vw);z-index:10}
+#pcQuestion{background:#111827;padding:10px 16px;border-radius:12px;text-align:center;font-size:18px;font-weight:700}
+#pcStats{display:flex;justify-content:space-between;margin-top:7px;font-size:14px}
+#pcArena{position:absolute;inset:96px 0 0 0}
+.pcTarget{position:absolute;width:145px;height:108px;border-radius:18px;background:#172033;border:3px solid #64748b;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:crosshair;user-select:none;box-shadow:0 12px 35px rgba(0,0,0,.35);transition:background .12s,transform .12s}
+.pcTarget:hover{background:#23405d;transform:scale(1.03)}
+.pcIcon{font-size:24px;margin-bottom:3px}
+#pcFeedback{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);width:min(620px,82vw);padding:10px 15px;border-radius:10px;text-align:center;font-size:14px;font-weight:700;display:none;z-index:20}
+#pcGameOver{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);z-index:30}
+.explosion{position:absolute;border-radius:50%;pointer-events:none;background:radial-gradient(circle,#fff59d 0%,#ff9800 35%,#e53935 65%,rgba(229,57,53,0) 100%);animation:boom .45s ease-out forwards}
+@keyframes boom{0%{width:20px;height:20px;opacity:1;transform:translate(-50%,-50%) scale(.2)}100%{width:220px;height:220px;opacity:0;transform:translate(-50%,-50%) scale(1)}}
+#pcControls{position:absolute;right:20px;top:20px;z-index:25;display:flex;gap:10px}
+#pcControls button{margin:0;padding:10px 16px;font-size:15px}
+.xr-control{background:#DC2626;color:white}
+.a-enter-vr,.a-enter-ar{display:none!important}
+</style>
+
+<script>
+/* =========================================================
+   EASY SETTINGS
+   ========================================================= */
+
+// CHANGE GAME DURATION HERE
+const GAME_DURATION = 60;
+
+// CHANGE POINTS HERE
+const POINTS_CORRECT = 10;
+const POINTS_WRONG = -5;
+const POINTS_MISSED = -5;
+
+// CHANGE TARGET SIZE HERE
+const XR_TARGET_WIDTH = 0.50;
+const XR_TARGET_HEIGHT = 0.36;
+const PC_TARGET_WIDTH = 112;
+const PC_TARGET_HEIGHT = 82;
+
+// CHANGE 3D MODEL FILES HERE
+// Replace these GLB files with your own models later.
+const MODEL_FILES = {
+  extinguisher: "assets/fire-extinguisher.glb",
+  helmet: "assets/helmet.glb",
+  cone: "assets/safety-cone.glb"
+};
+
+// CHANGE FALL SPEED HERE
+// Each answer gets its own random fall duration.
+const MIN_FALL_SECONDS = 4.5;
+const MAX_FALL_SECONDS = 8.0;
+
+// CHANGE RANDOM DROP DELAY HERE
+// Each answer waits a different amount of time before it starts dropping.
+const MAX_DROP_DELAY_SECONDS = 1.8;
+
+// CHANGE TARGET COLOUR HERE
+const COLOURS = {
+  normal:"#172033",
+  hover:"#23405D",
+  correct:"#16A34A",
+  wrong:"#DC2626",
+  laser:"#22D3EE"
+};
+
+// CHANGE SHOOTING SOUND HERE
+const SOUND = {
+  shoot:250,
+  correct:850,
+  wrong:150,
+  explode:95
+};
+
+/* =========================================================
+   QUIZ CONTENT
+   ========================================================= */
+
+const QUESTIONS = [
+  {
+    question:"A fire is too large to put out safely. What should you do?",
+    answers:[
+      {label:"Alert others,\ncall 995 and\nactivate the alarm",icon:"🚨",correct:true},
+      {label:"Use the lift\nto leave quickly",icon:"🛗",correct:false},
+      {label:"Go back for\nyour belongings",icon:"🎒",correct:false}
+    ],
+    explanation:"If the fire cannot be fought safely, alert others, call 995 and activate the nearest fire alarm."
+  },
+  {
+    question:"During a fire evacuation, which route should you use?",
+    answers:[
+      {label:"Exit stairs",icon:"🪜",correct:true},
+      {label:"Passenger lift",icon:"🛗",correct:false},
+      {label:"Stay at your\ndesk",icon:"🪑",correct:false}
+    ],
+    explanation:"Evacuate in an orderly manner via the stairs. Do not use the lift."
+  },
+  {
+    question:"Which number should you call to inform SCDF of a fire?",
+    answers:[
+      {label:"995",icon:"☎️",correct:true},
+      {label:"999",icon:"☎️",correct:false},
+      {label:"1777",icon:"☎️",correct:false}
+    ],
+    explanation:"Dial 995 to inform the Singapore Civil Defence Force of a fire."
+  },
+  {
+    question:"Which should you NEVER use on burning electrical equipment?",
+    answers:[
+      {label:"Water",icon:"💧",correct:true},
+      {label:"Suitable dry\npowder extinguisher",icon:"🧯",correct:false},
+      {label:"Suitable CO2\nextinguisher",icon:"🧯",correct:false}
+    ],
+    explanation:"Water should never be used on burning electrical equipment."
+  },
+  {
+    question:"Spot the fire-safety problem.",
+    answers:[
+      {label:"Boxes blocking\nthe exit",icon:"📦",correct:true},
+      {label:"Chair away\nfrom the exit",icon:"🪑",correct:false},
+      {label:"Plant away\nfrom the exit",icon:"🪴",correct:false}
+    ],
+    explanation:"Exit routes and access to exits should remain unobstructed."
+  },
+  {
+    question:"Choose the 3D model that represents fire-fighting equipment.",
+    useModels:true,
+    answers:[
+      {label:"Fire extinguisher",model:"extinguisher",icon:"🧯",correct:true},
+      {label:"Safety helmet",model:"helmet",icon:"⛑️",correct:false},
+      {label:"Safety cone",model:"cone",icon:"🔶",correct:false}
+    ],
+    explanation:"This question uses external GLB 3D model files. Replace the model paths to customise the activity."
+  }
+];
+
+/* =========================================================
+   GENERATED SOUND
+   ========================================================= */
+
+const audio={
+  ctx:null,
+  init(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==="suspended")this.ctx.resume()},
+  tone(f,d=.07,t="sine",v=.04){this.init();const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,this.ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,this.ctx.currentTime+d);o.connect(g);g.connect(this.ctx.destination);o.start();o.stop(this.ctx.currentTime+d)},
+  shoot(){this.tone(SOUND.shoot,.045,"square",.025)},
+  correct(){this.tone(SOUND.correct,.07,"sine",.05);setTimeout(()=>this.tone(SOUND.correct+250,.09,"sine",.045),60)},
+  wrong(){this.tone(SOUND.wrong,.12,"sawtooth",.035)},
+  explode(){this.tone(SOUND.explode,.20,"sawtooth",.05)}
+};
+
+function randomBetween(min,max){return Math.random()*(max-min)+min;}
+function createXRModelAnswer(answer){
+  const holder=document.createElement("a-entity");
+
+  // Invisible hit box used by the raycaster.
+  const hitbox=document.createElement("a-box");
+  hitbox.classList.add("shootable");
+  hitbox.setAttribute("width",XR_TARGET_WIDTH);
+  hitbox.setAttribute("height",XR_TARGET_HEIGHT);
+  hitbox.setAttribute("depth","0.28");
+  hitbox.setAttribute("material","opacity: 0.001; transparent: true");
+  holder.appendChild(hitbox);
+
+  const model=document.createElement("a-entity");
+  model.setAttribute("gltf-model",MODEL_FILES[answer.model]);
+  model.setAttribute("scale","0.23 0.23 0.23");
+  model.setAttribute("position","0 0 0.02");
+  holder.appendChild(model);
+
+  const label=document.createElement("a-text");
+  label.setAttribute("value",answer.label);
+  label.setAttribute("align","center");
+  label.setAttribute("position","0 -0.25 0.08");
+  label.setAttribute("width","0.9");
+  label.setAttribute("wrap-count","18");
+  holder.appendChild(label);
+
+  return {holder,hitbox};
+}
+
+
+/* =========================================================
+   MODE DETECTION
+   ========================================================= */
+
+async function detectMode(){
+  const status=document.querySelector("#modeStatus");
+  if(!window.isSecureContext){
+    status.textContent="This page is not using HTTPS, so WebXR cannot start. Personal computer mode is available.";
+    document.querySelector("#pcButton").style.display="inline-block";
+    return;
+  }
+
+  if(navigator.xr){
+    try{
+      const supported=await navigator.xr.isSessionSupported("immersive-ar");
+      if(supported){
+        document.querySelector("#modeTitle").textContent="MHA XR Safety Challenge";
+        document.querySelector("#modeDescription").textContent="Mixed-reality mode detected. Put on your headset, aim with the right controller and pull the trigger.";
+        document.querySelector("#xrButton").style.display="inline-block";
+        document.querySelector("#pcButton").style.display="inline-block";
+        status.textContent="WebXR mixed reality is available.";
+        return;
+      }
+    }catch(e){}
+  }
+
+  document.querySelector("#modeTitle").textContent="MHA Safety Challenge";
+  document.querySelector("#modeDescription").textContent="WebXR is not available in this browser, so the JavaScript personal computer version will run instead.";
+  document.querySelector("#pcButton").style.display="inline-block";
+  status.textContent="Personal computer mode detected.";
+}
+
+/* =========================================================
+   PERSONAL COMPUTER VERSION
+   ========================================================= */
+
+const pc={
+  score:0,timeLeft:GAME_DURATION,q:0,running:false,locked:false,timer:null,fallTimer:null,
+
+  start(){
+    audio.init();
+    document.querySelector("#modeScreen").style.display="none";
+    document.querySelector("a-scene").style.display="none";
+    document.querySelector("#pcGame").style.display="block";
+    this.score=0;this.timeLeft=GAME_DURATION;this.q=0;this.running=true;this.locked=false;
+    this.updateHud();this.showQuestion();
+    clearInterval(this.timer);
+    this.timer=setInterval(()=>{if(!this.running)return;this.timeLeft--;this.updateHud();if(this.timeLeft<=0)this.end("Time is up!");},1000);
+  },
+
+  updateHud(){
+    document.querySelector("#pcScore").textContent=`Score: ${this.score}`;
+    document.querySelector("#pcTime").textContent=`Time: ${this.timeLeft}`;
+    document.querySelector("#pcProgress").textContent=`Question ${Math.min(this.q+1,QUESTIONS.length)} / ${QUESTIONS.length}`;
+  },
+
+  showQuestion(){
+    if(!this.running)return;
+    if(this.q>=QUESTIONS.length){this.end("Challenge complete!");return}
+    this.locked=false;
+    clearTimeout(this.fallTimer);
+    const arena=document.querySelector("#pcArena");
+    arena.innerHTML="";
+    const q=QUESTIONS[this.q];
+    document.querySelector("#pcQuestion").textContent=q.question;
+    document.querySelector("#pcFeedback").style.display="none";
+
+    const xs=[20,50,80];
+    const arrivals=[];
+    q.answers.forEach((a,i)=>{
+      const t=document.createElement("div");
+      t.className="pcTarget";
+      t.dataset.index=i;
+      t.style.width=`${PC_TARGET_WIDTH}px`;
+      t.style.height=`${PC_TARGET_HEIGHT}px`;
+      t.style.left=`calc(${xs[i]}% - ${PC_TARGET_WIDTH/2}px)`;
+      t.style.top=`-${PC_TARGET_HEIGHT+20}px`;
+      t.innerHTML=`<div class="pcIcon">${a.icon}</div><div>${a.label.replace(/\n/g,"<br>")}</div>${q.useModels?'<div style="font-size:10px;margin-top:3px;color:#93c5fd">3D MODEL</div>':''}`;
+      t.onclick=()=>this.choose(i,t);
+      arena.appendChild(t);
+
+      const delay=randomBetween(0,MAX_DROP_DELAY_SECONDS);
+      const duration=randomBetween(MIN_FALL_SECONDS,MAX_FALL_SECONDS);
+      arrivals.push(delay+duration);
+
+      setTimeout(()=>{
+        if(!this.running||this.locked)return;
+        t.style.transition=`top ${duration}s linear, background .12s, transform .12s`;
+        t.style.top=`calc(100% - ${PC_TARGET_HEIGHT+12}px)`;
+      },delay*1000);
+    });
+
+    // The question is missed when the fastest target reaches the ground.
+    this.fallTimer=setTimeout(()=>this.missed(),Math.min(...arrivals)*1000);
+    this.updateHud();
+  },
+
+  choose(i,el){
+    if(!this.running||this.locked)return;
+    const q=QUESTIONS[this.q],a=q.answers[i];
+    if(a.correct){
+      this.locked=true;clearTimeout(this.fallTimer);this.score+=POINTS_CORRECT;el.style.background=COLOURS.correct;audio.correct();
+      this.feedback(`CORRECT +${POINTS_CORRECT} — ${q.explanation}`,COLOURS.correct);
+      this.updateHud();
+      setTimeout(()=>{this.q++;this.showQuestion()},1800);
+    }else{
+      this.score+=POINTS_WRONG;el.style.background=COLOURS.wrong;el.style.pointerEvents="none";audio.wrong();
+      this.feedback(`WRONG ${POINTS_WRONG} — try another target.`,COLOURS.wrong);
+      this.updateHud();
+    }
+  },
+
+  missed(){
+    if(!this.running||this.locked)return;
+    this.locked=true;this.score+=POINTS_MISSED;audio.explode();this.updateHud();
+    const arena=document.querySelector("#pcArena");
+    const boom=document.createElement("div");
+    boom.className="explosion";boom.style.left="50%";boom.style.top="82%";arena.appendChild(boom);
+    this.feedback(`TOO SLOW ${POINTS_MISSED} — the targets reached the ground.`,COLOURS.wrong);
+    setTimeout(()=>{this.q++;this.showQuestion()},1100);
+  },
+
+  feedback(msg,color){
+    const f=document.querySelector("#pcFeedback");f.textContent=msg;f.style.background=color;f.style.display="block";
+  },
+
+  stop(){
+    if(!this.running)return;
+    this.end("Game stopped.");
+  },
+
+  end(reason){
+    this.running=false;clearInterval(this.timer);clearTimeout(this.fallTimer);
+    document.querySelector("#pcGameOverText").textContent=`${reason} Your Score: ${this.score}`;
+    document.querySelector("#pcGameOver").style.display="flex";
+  }
+};
+
+/* =========================================================
+   WEBXR VERSION
+   ========================================================= */
+
+AFRAME.registerComponent("xr-quiz-game",{
+  init(){
+    this.score=0;this.timeLeft=GAME_DURATION;this.q=0;this.running=false;this.locked=false;this.timer=null;this.fallTimer=null;
+    this.answerArea=document.querySelector("#xrAnswerArea");
+    this.feedback=document.querySelector("#xrFeedback");
+    const scene=document.querySelector("a-scene");
+    scene.addEventListener("enter-vr",()=>setTimeout(()=>this.start(),350));
+  },
+
+  start(){
+    clearInterval(this.timer);clearTimeout(this.fallTimer);
+    this.score=0;this.timeLeft=GAME_DURATION;this.q=0;this.running=true;this.locked=false;
+    document.querySelector("#xrGameOver").setAttribute("visible",false);
+    document.querySelector("#xrQuizRoot").setAttribute("visible",true);
+    this.updateHud();this.showQuestion();
+    this.timer=setInterval(()=>{if(!this.running)return;this.timeLeft--;this.updateHud();if(this.timeLeft<=0)this.end("Time is up!");},1000);
+  },
+
+  updateHud(){
+    document.querySelector("#xrScore").setAttribute("value",`Score: ${this.score}`);
+    document.querySelector("#xrTime").setAttribute("value",`Time: ${this.timeLeft}`);
+    document.querySelector("#xrProgress").setAttribute("value",`Question ${Math.min(this.q+1,QUESTIONS.length)} / ${QUESTIONS.length}`);
+  },
+
+  showQuestion(){
+    if(!this.running)return;
+    if(this.q>=QUESTIONS.length){this.end("Challenge complete!");return}
+    this.locked=false;clearTimeout(this.fallTimer);
+    this.answerArea.innerHTML="";
+    this.feedback.setAttribute("visible",false);
+    const q=QUESTIONS[this.q];
+    document.querySelector("#xrQuestion").setAttribute("value",q.question);
+
+    const baseXs=[-0.72,0,0.72];
+    const arrivals=[];
+    q.answers.forEach((a,i)=>{
+      let e,holder;
+
+      if(q.useModels){
+        const built=createXRModelAnswer(a);
+        holder=built.holder;
+        e=built.hitbox;
+        e.dataset.index=i;
+      }else{
+        e=document.createElement("a-box");
+        e.classList.add("shootable");
+        e.dataset.index=i;
+        e.setAttribute("width",XR_TARGET_WIDTH);
+        e.setAttribute("height",XR_TARGET_HEIGHT);
+        e.setAttribute("depth","0.05");
+        e.setAttribute("color",COLOURS.normal);
+
+        const icon=document.createElement("a-text");
+        icon.setAttribute("value",a.icon);
+        icon.setAttribute("align","center");
+        icon.setAttribute("position","0 0.055 0.035");
+        icon.setAttribute("width","1.0");
+        e.appendChild(icon);
+
+        const txt=document.createElement("a-text");
+        txt.setAttribute("value",a.label);
+        txt.setAttribute("align","center");
+        txt.setAttribute("position","0 -0.085 0.035");
+        txt.setAttribute("width","0.82");
+        txt.setAttribute("wrap-count","18");
+        e.appendChild(txt);
+
+        holder=e;
+      }
+
+      const x=baseXs[i]+randomBetween(-0.10,0.10);
+      // START ANSWERS FROM THE BOTTOM EDGE OF THE QUESTION PANEL
+      // Question panel lower edge is about y=1.97.
+      // Target centre starts at y=1.78 so its top edge visually meets the panel.
+      const startY=1.78;
+      const endY=-0.58;
+      const delay=randomBetween(0,MAX_DROP_DELAY_SECONDS);
+      const duration=randomBetween(MIN_FALL_SECONDS,MAX_FALL_SECONDS);
+      arrivals.push(delay+duration);
+
+      holder.setAttribute("position",`${x} ${startY} 0`);
+      this.answerArea.appendChild(holder);
+
+      setTimeout(()=>{
+        if(!this.running||this.locked)return;
+        holder.setAttribute("animation__fall",`property: position; to: ${x} ${endY} 0; dur: ${duration*1000}; easing: linear`);
+      },delay*1000);
+    });
+
+    this.fallTimer=setTimeout(()=>this.missed(),Math.min(...arrivals)*1000);
+    this.updateHud();
+  },
+
+  choose(el){
+    if(!this.running||this.locked)return;
+    const i=Number(el.dataset.index),q=QUESTIONS[this.q],a=q.answers[i];
+    if(a.correct){
+      this.locked=true;clearTimeout(this.fallTimer);this.score+=POINTS_CORRECT;if(el.getAttribute("material")?.opacity!==0.001)el.setAttribute("color",COLOURS.correct);audio.correct();
+      this.showFeedback(`CORRECT +${POINTS_CORRECT}\n${q.explanation}`,COLOURS.correct);this.updateHud();
+      setTimeout(()=>{this.q++;this.showQuestion()},2100);
+    }else{
+      this.score+=POINTS_WRONG;el.classList.remove("shootable");if(el.getAttribute("material")?.opacity!==0.001)el.setAttribute("color",COLOURS.wrong);audio.wrong();
+      this.showFeedback(`WRONG ${POINTS_WRONG}\nTry another target.`,COLOURS.wrong);this.updateHud();
+    }
+  },
+
+  missed(){
+    if(!this.running||this.locked)return;
+    this.locked=true;this.score+=POINTS_MISSED;audio.explode();this.updateHud();
+    this.answerArea.querySelectorAll(".shootable").forEach(el=>el.classList.remove("shootable"));
+    this.createExplosion();
+    this.showFeedback(`TOO SLOW ${POINTS_MISSED}\nThe targets reached the ground.`,COLOURS.wrong);
+    setTimeout(()=>{this.q++;this.showQuestion()},1300);
+  },
+
+  createExplosion(){
+    const p=document.createElement("a-sphere");
+    p.setAttribute("position","0 -0.45 0");
+    p.setAttribute("radius","0.12");
+    p.setAttribute("color","#FFB300");
+    p.setAttribute("material","shader: flat; opacity: 0.9; transparent: true");
+    p.setAttribute("animation__grow","property: scale; to: 4 4 4; dur: 350; easing: easeOutQuad");
+    p.setAttribute("animation__fade","property: material.opacity; to: 0; dur: 400; easing: linear");
+    this.answerArea.appendChild(p);
+    setTimeout(()=>p.remove(),450);
+  },
+
+  showFeedback(msg,color){
+    this.feedback.setAttribute("visible",true);this.feedback.setAttribute("color",color);
+    document.querySelector("#xrFeedbackText").setAttribute("value",msg);
+  },
+
+  stop(){
+    if(!this.running)return;
+    this.end("Game stopped.");
+  },
+
+  async exitXR(){
+    this.running=false;
+    clearInterval(this.timer);
+    clearTimeout(this.fallTimer);
+    const scene=document.querySelector("a-scene");
+    try{await scene.exitVR();}catch(e){console.error(e)}
+    document.querySelector("#modeScreen").style.display="flex";
+    document.querySelector("#modeStatus").textContent="Exited XR. Choose a mode to play again.";
+  },
+
+  end(reason){
+    this.running=false;clearInterval(this.timer);clearTimeout(this.fallTimer);
+    document.querySelector("#xrQuizRoot").setAttribute("visible",false);
+    document.querySelector("#xrGameOver").setAttribute("visible",true);
+    document.querySelector("#xrGameOverReason").setAttribute("value",reason);
+    document.querySelector("#xrGameOverScore").setAttribute("value",`Your Score: ${this.score}`);
+  }
+});
+
+AFRAME.registerComponent("xr-shooter",{
+  init(){
+    this.el.addEventListener("triggerdown",()=>this.shoot());
+    this.el.addEventListener("abuttondown",()=>{
+      const g=document.querySelector("#xrGameManager").components["xr-quiz-game"];
+      if(g&&!g.running)g.start();
+    });
+  },
+  shoot(){
+    const g=document.querySelector("#xrGameManager").components["xr-quiz-game"];
+    const r=this.el.components.raycaster;
+    if(!r||!r.intersections||!r.intersections.length)return;
+    const hit=r.intersections[0].object&&r.intersections[0].object.el;
+
+    // Utility controls work even after the game has ended.
+    if(hit&&hit.id==="xrExitButton"){audio.shoot();g.exitXR();return}
+    if(hit&&hit.id==="xrStopButton"){audio.shoot();g.stop();return}
+
+    if(!g||!g.running||g.locked)return;
+    audio.shoot();
+    if(hit&&hit.classList.contains("shootable"))g.choose(hit);
+  }
+});
+
+window.addEventListener("DOMContentLoaded",()=>{
+  detectMode();
+
+  document.querySelector("#pcButton").onclick=()=>pc.start();
+  document.querySelector("#pcRestart").onclick=()=>{
+    document.querySelector("#pcGameOver").style.display="none";pc.start();
+  };
+  document.querySelector("#pcStop").onclick=()=>pc.stop();
+
+  document.querySelector("#xrButton").onclick=async()=>{
+    audio.init();
+    try{
+      document.querySelector("#modeScreen").style.display="none";
+      await document.querySelector("a-scene").enterAR();
+    }catch(e){
+      document.querySelector("#modeScreen").style.display="flex";
+      document.querySelector("#modeStatus").textContent="Could not start WebXR. You can still use the personal computer version.";
+    }
+  };
+});
+</script>
+</head>
+
+<body>
+
+<div id="modeScreen">
+  <div class="card">
+    <h1 id="modeTitle">MHA Safety Challenge</h1>
+    <p id="modeDescription">Checking whether this browser supports mixed reality...</p>
+    <button id="xrButton" style="display:none">Enter Mixed Reality</button>
+    <button id="pcButton" style="display:none">Play Personal Computer Version</button>
+    <div id="modeStatus" style="margin-top:16px;color:#cbd5e1"></div>
+  </div>
+</div>
+
+<div id="pcGame">
+  <div id="pcControls">
+    <button id="pcStop" class="xr-control">Stop Game</button>
+  </div>
+  <div id="pcHud">
+    <div id="pcQuestion">Question</div>
+    <div id="pcStats">
+      <span id="pcProgress">Question 1 / 6</span>
+      <span id="pcScore">Score: 0</span>
+      <span id="pcTime">Time: 60</span>
+    </div>
+  </div>
+  <div id="pcArena"></div>
+  <div id="pcFeedback"></div>
+  <div id="pcGameOver">
+    <div class="card">
+      <h1>Challenge Complete</h1>
+      <p id="pcGameOverText"></p>
+      <button id="pcRestart">Restart</button>
+    </div>
+  </div>
+</div>
+
+<a-scene
+  style="display:block"
+  xr-mode-ui="XRMode: ar"
+  renderer="alpha: true; colorManagement: true; antialias: true"
+  background="transparent: true"
+  webxr="referenceSpaceType: local-floor; optionalFeatures: local-floor"
+>
+  <a-camera wasd-controls-enabled="false"></a-camera>
+  <a-entity id="leftController" meta-touch-controls="hand: left"></a-entity>
+  <a-entity
+    id="rightController"
+    meta-touch-controls="hand: right"
+    raycaster="objects: .shootable, .xrUtility; far: 6; showLine: true; lineColor: #22D3EE; lineOpacity: 0.95"
+    xr-shooter
+  ></a-entity>
+
+  <a-entity id="xrGameManager" xr-quiz-game></a-entity>
+
+  <!-- XR utility controls: aim and pull trigger -->
+  <a-entity id="xrControls" position="0 2.78 -2.5">
+    <a-box id="xrStopButton" class="xrUtility" width="0.58" height="0.18" depth="0.04" position="-0.32 0 0" color="#B91C1C">
+      <a-text value="STOP GAME" position="0 0 0.03" width="0.95" align="center"></a-text>
+    </a-box>
+    <a-box id="xrExitButton" class="xrUtility" width="0.58" height="0.18" depth="0.04" position="0.32 0 0" color="#475569">
+      <a-text value="EXIT XR" position="0 0 0.03" width="0.95" align="center"></a-text>
+    </a-box>
+  </a-entity>
+
+  <a-entity id="xrQuizRoot">
+    <a-entity position="0 2.25 -2.7">
+      <a-box width="2.75" height="0.56" depth="0.045" color="#0F172A" opacity="0.94"></a-box>
+      <a-text id="xrQuestion" value="Question" position="0 0.07 0.04" width="2.35" align="center" wrap-count="48"></a-text>
+      <a-text id="xrProgress" value="Question 1 / 6" position="-1.12 -0.18 0.04" width="1.05" color="#93C5FD"></a-text>
+      <a-text id="xrScore" value="Score: 0" position="0.35 -0.18 0.04" width="0.95"></a-text>
+      <a-text id="xrTime" value="Time: 60" position="0.85 -0.18 0.04" width="0.95" color="#FACC15"></a-text>
+    </a-entity>
+
+    <a-entity id="xrAnswerArea" position="0 0 -2.7"></a-entity>
+
+    <a-box id="xrFeedback" position="0 0.42 -2.55" width="3.0" height="0.5" depth="0.04" color="#16A34A" visible="false">
+      <a-text id="xrFeedbackText" value="" position="0 0 0.03" width="2.7" align="center" wrap-count="48"></a-text>
+    </a-box>
+  </a-entity>
+
+  <a-entity id="xrGameOver" position="0 1.5 -2.3" visible="false">
+    <a-box width="2.9" height="1.55" depth="0.06" color="#111827" opacity="0.96"></a-box>
+    <a-text value="CHALLENGE COMPLETE" position="0 0.48 0.04" width="3.1" align="center" color="#FACC15"></a-text>
+    <a-text id="xrGameOverReason" value="" position="0 0.17 0.04" width="2.4" align="center" color="#BFDBFE"></a-text>
+    <a-text id="xrGameOverScore" value="Your Score: 0" position="0 -0.10 0.04" width="2.8" align="center"></a-text>
+    <a-text value="Press A on the right controller to restart" position="0 -0.45 0.04" width="2.4" align="center" color="#67E8F9" wrap-count="38"></a-text>
+  </a-entity>
+</a-scene>
+
+</body>
+</html>
