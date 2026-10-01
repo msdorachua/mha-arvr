@@ -1,0 +1,3529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+>
+
+<title>MHA XR Safety Challenge - Quest + Android MR</title>
+
+<script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
+
+<style>
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  background: #0b1220;
+  color: white;
+  touch-action: none;
+}
+
+/* =========================================================
+   START SCREEN
+   ========================================================= */
+
+#modeScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    linear-gradient(
+      135deg,
+      #0b1220,
+      #18243d
+    );
+}
+
+.card {
+  width:
+    min(
+      700px,
+      calc(100% - 40px)
+    );
+
+  box-sizing: border-box;
+
+  padding: 32px;
+
+  border-radius: 22px;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.08
+    );
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.16
+    );
+
+  text-align: center;
+}
+
+button {
+  border: 0;
+  border-radius: 12px;
+
+  padding: 14px 22px;
+  margin: 6px;
+
+  font-size: 17px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  background: #22d3ee;
+  color: #06202a;
+}
+
+/* =========================================================
+   MOBILE MR OVERLAY
+   ========================================================= */
+
+#mobileMRUI {
+  display: none;
+
+  position: fixed;
+  inset: 0;
+
+  z-index: 999;
+
+  pointer-events: none;
+}
+
+#mobileMRHelp {
+  position: absolute;
+
+  top: 14px;
+  left: 50%;
+
+  transform:
+    translateX(-50%);
+
+  width:
+    min(
+      460px,
+      90vw
+    );
+
+  box-sizing: border-box;
+
+  padding: 9px 14px;
+
+  border-radius: 12px;
+
+  background:
+    rgba(
+      15,
+      23,
+      42,
+      0.82
+    );
+
+  color: white;
+
+  text-align: center;
+
+  font-size: 13px;
+
+  pointer-events: none;
+}
+
+#mobileMRStatus {
+  color: #67e8f9;
+  font-weight: 700;
+}
+
+#mobileMRHint {
+  position: absolute;
+
+  left: 50%;
+  bottom: 20px;
+
+  transform:
+    translateX(-50%);
+
+  width:
+    min(
+      460px,
+      88vw
+    );
+
+  box-sizing: border-box;
+
+  padding: 10px 14px;
+
+  border-radius: 12px;
+
+  background:
+    rgba(
+      15,
+      23,
+      42,
+      0.82
+    );
+
+  color: white;
+
+  text-align: center;
+
+  font-size: 13px;
+
+  pointer-events: none;
+}
+
+/* =========================================================
+   DESKTOP FALLBACK
+   ========================================================= */
+
+#pcGame {
+  display: none;
+
+  position: fixed;
+  inset: 0;
+
+  background:
+    radial-gradient(
+      circle at center,
+      #17233b,
+      #0b1220
+    );
+
+  overflow: hidden;
+}
+
+#pcHud {
+  position: absolute;
+
+  top: 20px;
+  left: 50%;
+
+  transform:
+    translateX(-50%);
+
+  width:
+    min(
+      900px,
+      92vw
+    );
+
+  z-index: 10;
+}
+
+#pcQuestion {
+  background: #111827;
+
+  padding: 10px 16px;
+
+  border-radius: 12px;
+
+  text-align: center;
+
+  font-size: 18px;
+  font-weight: 700;
+}
+
+#pcStats {
+  display: flex;
+  justify-content: space-between;
+
+  margin-top: 7px;
+
+  font-size: 14px;
+}
+
+#pcArena {
+  position: absolute;
+
+  inset:
+    96px 0 0 0;
+}
+
+.pcTarget {
+  position: absolute;
+
+  width: 90px;
+  height: 41px;
+
+  border-radius: 18px;
+
+  background: #172033;
+
+  border:
+    3px solid
+    #64748b;
+
+  display: flex;
+
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+
+  cursor: pointer;
+
+  user-select: none;
+
+  box-shadow:
+    0 8px 20px
+    rgba(
+      0,
+      0,
+      0,
+      0.30
+    );
+
+  transition:
+    background 0.12s,
+    transform 0.12s;
+
+  font-size: 10px;
+
+  padding: 4px;
+}
+
+.pcTarget:hover {
+  background: #23405d;
+
+  transform:
+    scale(1.03);
+}
+
+#pcFeedback {
+  position: absolute;
+
+  bottom: 20px;
+  left: 50%;
+
+  transform:
+    translateX(-50%);
+
+  width:
+    min(
+      620px,
+      82vw
+    );
+
+  padding:
+    10px 15px;
+
+  border-radius: 10px;
+
+  text-align: center;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  display: none;
+
+  z-index: 20;
+}
+
+#pcGameOver {
+  position: absolute;
+  inset: 0;
+
+  display: none;
+
+  align-items: center;
+  justify-content: center;
+
+  background:
+    rgba(
+      0,
+      0,
+      0,
+      0.72
+    );
+
+  z-index: 30;
+}
+
+#pcStop {
+  position: absolute;
+
+  right: 16px;
+  top: 16px;
+
+  z-index: 30;
+
+  background: #b91c1c;
+  color: white;
+}
+
+/* Hide A-Frame automatic buttons */
+
+.a-enter-vr,
+.a-enter-ar {
+  display: none !important;
+}
+</style>
+
+<script>
+/* =========================================================
+   GAME SETTINGS
+   ========================================================= */
+
+const GAME_DURATION = 60;
+
+const POINTS_CORRECT = 10;
+const POINTS_WRONG = -5;
+const POINTS_MISSED = -5;
+
+const XR_TARGET_WIDTH = 0.40;
+const XR_TARGET_HEIGHT = 0.18;
+
+const XR_HITBOX_WIDTH = 0.54;
+const XR_HITBOX_HEIGHT = 0.30;
+const XR_HITBOX_DEPTH = 0.18;
+
+const PC_TARGET_WIDTH = 90;
+const PC_TARGET_HEIGHT = 41;
+
+const MIN_FALL_SECONDS = 4.5;
+const MAX_FALL_SECONDS = 8.0;
+
+const MAX_DROP_DELAY_SECONDS = 1.8;
+
+const COLOURS = {
+  normal: "#172033",
+  correct: "#16A34A",
+  wrong: "#DC2626",
+  laser: "#22D3EE"
+};
+
+const MODEL_FILES = {
+  extinguisher:
+    "assets/fire-extinguisher.glb",
+
+  helmet:
+    "assets/helmet.glb",
+
+  cone:
+    "assets/safety-cone.glb"
+};
+
+/* =========================================================
+   QUIZ
+   ========================================================= */
+
+const QUESTIONS = [
+  {
+    question:
+      "A fire is too large to put out safely. What should you do?",
+
+    answers: [
+      {
+        label:
+          "Alert others,\ncall 995 and\nactivate alarm",
+
+        correct: true
+      },
+
+      {
+        label:
+          "Use the lift\nto leave quickly",
+
+        correct: false
+      },
+
+      {
+        label:
+          "Go back for\nyour belongings",
+
+        correct: false
+      }
+    ],
+
+    explanation:
+      "Alert others, call 995 and activate the fire alarm."
+  },
+
+  {
+    question:
+      "During a fire evacuation, which route should you use?",
+
+    answers: [
+      {
+        label:
+          "Exit stairs",
+
+        correct: true
+      },
+
+      {
+        label:
+          "Passenger lift",
+
+        correct: false
+      },
+
+      {
+        label:
+          "Stay at your desk",
+
+        correct: false
+      }
+    ],
+
+    explanation:
+      "Use the stairs during a fire evacuation."
+  },
+
+  {
+    question:
+      "Which number should you call to inform SCDF of a fire?",
+
+    answers: [
+      {
+        label: "995",
+        correct: true
+      },
+
+      {
+        label: "999",
+        correct: false
+      },
+
+      {
+        label: "1777",
+        correct: false
+      }
+    ],
+
+    explanation:
+      "995 is the SCDF emergency number."
+  },
+
+  {
+    question:
+      "Which should you NEVER use on burning electrical equipment?",
+
+    answers: [
+      {
+        label: "Water",
+        correct: true
+      },
+
+      {
+        label:
+          "Dry powder extinguisher",
+
+        correct: false
+      },
+
+      {
+        label:
+          "CO2 extinguisher",
+
+        correct: false
+      }
+    ],
+
+    explanation:
+      "Never use water on burning electrical equipment."
+  },
+
+  {
+    question:
+      "Spot the fire-safety problem.",
+
+    answers: [
+      {
+        label:
+          "Boxes blocking\nthe exit",
+
+        correct: true
+      },
+
+      {
+        label:
+          "Chair away\nfrom exit",
+
+        correct: false
+      },
+
+      {
+        label:
+          "Plant away\nfrom exit",
+
+        correct: false
+      }
+    ],
+
+    explanation:
+      "Fire exit routes must remain unobstructed."
+  },
+
+  {
+    question:
+      "Choose the 3D model that represents fire-fighting equipment.",
+
+    useModels: true,
+
+    answers: [
+      {
+        label:
+          "Fire Extinguisher",
+
+        model:
+          "extinguisher",
+
+        correct: true
+      },
+
+      {
+        label:
+          "Safety Helmet",
+
+        model:
+          "helmet",
+
+        correct: false
+      },
+
+      {
+        label:
+          "Safety Cone",
+
+        model:
+          "cone",
+
+        correct: false
+      }
+    ],
+
+    explanation:
+      "A fire extinguisher is fire-fighting equipment."
+  }
+];
+
+/* =========================================================
+   UTILITIES
+   ========================================================= */
+
+function randomBetween(
+  min,
+  max
+) {
+  return (
+    Math.random() *
+    (max - min) +
+    min
+  );
+}
+
+function shuffledQuestions() {
+  const copy =
+    [...QUESTIONS];
+
+  for (
+    let i =
+      copy.length - 1;
+    i > 0;
+    i--
+  ) {
+    const j =
+      Math.floor(
+        Math.random() *
+        (i + 1)
+      );
+
+    [
+      copy[i],
+      copy[j]
+    ] = [
+      copy[j],
+      copy[i]
+    ];
+  }
+
+  return copy;
+}
+
+/* =========================================================
+   SOUND
+   ========================================================= */
+
+const audio = {
+  ctx: null,
+
+  init() {
+    if (!this.ctx) {
+      this.ctx =
+        new (
+          window.AudioContext ||
+          window.webkitAudioContext
+        )();
+    }
+
+    if (
+      this.ctx.state ===
+      "suspended"
+    ) {
+      this.ctx.resume();
+    }
+  },
+
+  tone(
+    frequency,
+    duration,
+    type = "sine"
+  ) {
+    this.init();
+
+    const oscillator =
+      this.ctx.createOscillator();
+
+    const gain =
+      this.ctx.createGain();
+
+    oscillator.type =
+      type;
+
+    oscillator.frequency.value =
+      frequency;
+
+    gain.gain.setValueAtTime(
+      0.04,
+      this.ctx.currentTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      this.ctx.currentTime +
+      duration
+    );
+
+    oscillator.connect(
+      gain
+    );
+
+    gain.connect(
+      this.ctx.destination
+    );
+
+    oscillator.start();
+
+    oscillator.stop(
+      this.ctx.currentTime +
+      duration
+    );
+  },
+
+  shoot() {
+    this.tone(
+      250,
+      0.05,
+      "square"
+    );
+  },
+
+  correct() {
+    this.tone(
+      850,
+      0.10
+    );
+
+    setTimeout(
+      () => {
+        this.tone(
+          1100,
+          0.10
+        );
+      },
+      70
+    );
+  },
+
+  wrong() {
+    this.tone(
+      150,
+      0.12,
+      "sawtooth"
+    );
+  },
+
+  explode() {
+    this.tone(
+      95,
+      0.20,
+      "sawtooth"
+    );
+  }
+};
+
+/* =========================================================
+   XR HIGHLIGHT
+   ========================================================= */
+
+let currentXRHighlight =
+  null;
+
+function clearXRHighlight() {
+  if (
+    currentXRHighlight &&
+    currentXRHighlight.parentNode
+  ) {
+    currentXRHighlight
+      .parentNode
+      .removeChild(
+        currentXRHighlight
+      );
+  }
+
+  currentXRHighlight =
+    null;
+}
+
+function showXRHighlight(
+  holder,
+  width,
+  height
+) {
+  clearXRHighlight();
+
+  const outline =
+    document.createElement(
+      "a-box"
+    );
+
+  outline.setAttribute(
+    "width",
+    width
+  );
+
+  outline.setAttribute(
+    "height",
+    height
+  );
+
+  outline.setAttribute(
+    "depth",
+    "0.012"
+  );
+
+  outline.setAttribute(
+    "position",
+    "0 0 0.08"
+  );
+
+  outline.setAttribute(
+    "material",
+    "color:#22D3EE; opacity:0.95; transparent:true; wireframe:true"
+  );
+
+  holder.appendChild(
+    outline
+  );
+
+  currentXRHighlight =
+    outline;
+}
+
+/* =========================================================
+   CREATE STANDARD XR ANSWER
+   ========================================================= */
+
+function createStandardAnswer(
+  answer,
+  index
+) {
+  const holder =
+    document.createElement(
+      "a-entity"
+    );
+
+  holder.classList.add(
+    "xr-answer-holder"
+  );
+
+  const card =
+    document.createElement(
+      "a-box"
+    );
+
+  card.setAttribute(
+    "width",
+    XR_TARGET_WIDTH
+  );
+
+  card.setAttribute(
+    "height",
+    XR_TARGET_HEIGHT
+  );
+
+  card.setAttribute(
+    "depth",
+    "0.05"
+  );
+
+  card.setAttribute(
+    "color",
+    COLOURS.normal
+  );
+
+  holder.appendChild(
+    card
+  );
+
+  const text =
+    document.createElement(
+      "a-text"
+    );
+
+  text.setAttribute(
+    "value",
+    answer.label
+  );
+
+  text.setAttribute(
+    "align",
+    "center"
+  );
+
+  text.setAttribute(
+    "width",
+    "0.65"
+  );
+
+  text.setAttribute(
+    "wrap-count",
+    "18"
+  );
+
+  text.setAttribute(
+    "position",
+    "0 0 0.035"
+  );
+
+  holder.appendChild(
+    text
+  );
+
+  const hitbox =
+    document.createElement(
+      "a-box"
+    );
+
+  hitbox.classList.add(
+    "shootable"
+  );
+
+  hitbox.dataset.index =
+    index;
+
+  hitbox.setAttribute(
+    "width",
+    XR_HITBOX_WIDTH
+  );
+
+  hitbox.setAttribute(
+    "height",
+    XR_HITBOX_HEIGHT
+  );
+
+  hitbox.setAttribute(
+    "depth",
+    XR_HITBOX_DEPTH
+  );
+
+  hitbox.setAttribute(
+    "material",
+    "opacity:0.001; transparent:true; depthWrite:false"
+  );
+
+  holder.appendChild(
+    hitbox
+  );
+
+  hitbox.addEventListener(
+    "raycaster-intersected",
+    () => {
+      showXRHighlight(
+        holder,
+        XR_TARGET_WIDTH +
+        0.05,
+
+        XR_TARGET_HEIGHT +
+        0.05
+      );
+
+      card.setAttribute(
+        "scale",
+        "1.05 1.05 1.05"
+      );
+    }
+  );
+
+  hitbox.addEventListener(
+    "raycaster-intersected-cleared",
+    () => {
+      if (
+        currentXRHighlight &&
+        currentXRHighlight.parentNode ===
+        holder
+      ) {
+        clearXRHighlight();
+      }
+
+      card.setAttribute(
+        "scale",
+        "1 1 1"
+      );
+    }
+  );
+
+  return {
+    holder,
+    hitbox,
+    card
+  };
+}
+
+/* =========================================================
+   CREATE MODEL XR ANSWER
+   ========================================================= */
+
+function createModelAnswer(
+  answer,
+  index
+) {
+  const holder =
+    document.createElement(
+      "a-entity"
+    );
+
+  holder.classList.add(
+    "xr-answer-holder"
+  );
+
+  const hitbox =
+    document.createElement(
+      "a-box"
+    );
+
+  hitbox.classList.add(
+    "shootable"
+  );
+
+  hitbox.dataset.index =
+    index;
+
+  hitbox.setAttribute(
+    "width",
+    XR_HITBOX_WIDTH
+  );
+
+  hitbox.setAttribute(
+    "height",
+    XR_HITBOX_HEIGHT
+  );
+
+  hitbox.setAttribute(
+    "depth",
+    XR_HITBOX_DEPTH
+  );
+
+  hitbox.setAttribute(
+    "material",
+    "opacity:0.001; transparent:true; depthWrite:false"
+  );
+
+  holder.appendChild(
+    hitbox
+  );
+
+  const model =
+    document.createElement(
+      "a-entity"
+    );
+
+  model.setAttribute(
+    "gltf-model",
+    MODEL_FILES[
+      answer.model
+    ]
+  );
+
+  model.setAttribute(
+    "scale",
+    "0.115 0.115 0.115"
+  );
+
+  holder.appendChild(
+    model
+  );
+
+  const text =
+    document.createElement(
+      "a-text"
+    );
+
+  text.setAttribute(
+    "value",
+    answer.label
+  );
+
+  text.setAttribute(
+    "align",
+    "center"
+  );
+
+  text.setAttribute(
+    "width",
+    "0.5"
+  );
+
+  text.setAttribute(
+    "position",
+    "0 -0.15 0.08"
+  );
+
+  holder.appendChild(
+    text
+  );
+
+  hitbox.addEventListener(
+    "raycaster-intersected",
+    () => {
+      showXRHighlight(
+        holder,
+        XR_TARGET_WIDTH +
+        0.08,
+
+        XR_TARGET_HEIGHT +
+        0.12
+      );
+
+      model.setAttribute(
+        "scale",
+        "0.125 0.125 0.125"
+      );
+    }
+  );
+
+  hitbox.addEventListener(
+    "raycaster-intersected-cleared",
+    () => {
+      if (
+        currentXRHighlight &&
+        currentXRHighlight.parentNode ===
+        holder
+      ) {
+        clearXRHighlight();
+      }
+
+      model.setAttribute(
+        "scale",
+        "0.115 0.115 0.115"
+      );
+    }
+  );
+
+  return {
+    holder,
+    hitbox,
+    model
+  };
+}
+
+/* =========================================================
+   XR GAME
+   ========================================================= */
+
+AFRAME.registerComponent(
+  "xr-quiz-game",
+  {
+    init() {
+      this.score = 0;
+
+      this.timeLeft =
+        GAME_DURATION;
+
+      this.q = 0;
+
+      this.running =
+        false;
+
+      this.locked =
+        false;
+
+      this.timer =
+        null;
+
+      this.fallTimer =
+        null;
+
+      this.questionOrder =
+        [];
+
+      this.startTime =
+        null;
+
+      this.answerArea =
+        document.querySelector(
+          "#xrAnswerArea"
+        );
+
+      this.feedback =
+        document.querySelector(
+          "#xrFeedback"
+        );
+
+      const scene =
+        document.querySelector(
+          "a-scene"
+        );
+
+      scene.addEventListener(
+        "enter-vr",
+        () => {
+          setTimeout(
+            () => {
+              this.start();
+            },
+            300
+          );
+        }
+      );
+    },
+
+    start() {
+      clearInterval(
+        this.timer
+      );
+
+      clearTimeout(
+        this.fallTimer
+      );
+
+      this.score = 0;
+
+      this.timeLeft =
+        GAME_DURATION;
+
+      this.q = 0;
+
+      this.running =
+        true;
+
+      this.locked =
+        false;
+
+      this.startTime =
+        performance.now();
+
+      this.questionOrder =
+        shuffledQuestions();
+
+      document
+        .querySelector(
+          "#xrGameOver"
+        )
+        .setAttribute(
+          "visible",
+          false
+        );
+
+      document
+        .querySelector(
+          "#xrQuizRoot"
+        )
+        .setAttribute(
+          "visible",
+          true
+        );
+
+      this.updateHud();
+
+      this.showQuestion();
+
+      this.timer =
+        setInterval(
+          () => {
+            if (
+              !this.running
+            ) {
+              return;
+            }
+
+            this.timeLeft--;
+
+            this.updateHud();
+
+            if (
+              this.timeLeft <= 0
+            ) {
+              this.end(
+                "Time is up!"
+              );
+            }
+          },
+          1000
+        );
+    },
+
+    updateHud() {
+      document
+        .querySelector(
+          "#xrScore"
+        )
+        .setAttribute(
+          "value",
+          `Score: ${this.score}`
+        );
+
+      document
+        .querySelector(
+          "#xrTime"
+        )
+        .setAttribute(
+          "value",
+          `Time: ${this.timeLeft}`
+        );
+
+      const total =
+        this.questionOrder.length ||
+        QUESTIONS.length;
+
+      document
+        .querySelector(
+          "#xrProgress"
+        )
+        .setAttribute(
+          "value",
+          `Question ${Math.min(this.q + 1, total)} / ${total}`
+        );
+    },
+
+    showQuestion() {
+      if (
+        !this.running
+      ) {
+        return;
+      }
+
+      if (
+        this.q >=
+        this.questionOrder.length
+      ) {
+        this.end(
+          "Challenge complete!"
+        );
+
+        return;
+      }
+
+      this.locked =
+        false;
+
+      clearTimeout(
+        this.fallTimer
+      );
+
+      clearXRHighlight();
+
+      this.answerArea.innerHTML =
+        "";
+
+      this.feedback.setAttribute(
+        "visible",
+        false
+      );
+
+      const question =
+        this.questionOrder[
+          this.q
+        ];
+
+      document
+        .querySelector(
+          "#xrQuestion"
+        )
+        .setAttribute(
+          "value",
+          question.question
+        );
+
+      const lanes =
+        [
+          -0.60,
+          0,
+          0.60
+        ];
+
+      for (
+        let i =
+          lanes.length - 1;
+        i > 0;
+        i--
+      ) {
+        const j =
+          Math.floor(
+            Math.random() *
+            (i + 1)
+          );
+
+        [
+          lanes[i],
+          lanes[j]
+        ] = [
+          lanes[j],
+          lanes[i]
+        ];
+      }
+
+      const arrivals =
+        [];
+
+      question.answers.forEach(
+        (
+          answer,
+          index
+        ) => {
+          const result =
+            question.useModels
+
+              ? createModelAnswer(
+                  answer,
+                  index
+                )
+
+              : createStandardAnswer(
+                  answer,
+                  index
+                );
+
+          const holder =
+            result.holder;
+
+          const startX =
+            lanes[index] +
+            randomBetween(
+              -0.10,
+              0.10
+            );
+
+          const startY =
+            randomBetween(
+              1.72,
+              1.82
+            );
+
+          const endX =
+            Math.max(
+              -1.05,
+              Math.min(
+                1.05,
+
+                startX +
+                randomBetween(
+                  -0.50,
+                  0.50
+                )
+              )
+            );
+
+          const endY =
+            randomBetween(
+              -0.62,
+              -0.48
+            );
+
+          const endZ =
+            randomBetween(
+              -0.15,
+              0.12
+            );
+
+          const delay =
+            randomBetween(
+              0,
+              MAX_DROP_DELAY_SECONDS
+            );
+
+          const duration =
+            randomBetween(
+              MIN_FALL_SECONDS,
+              MAX_FALL_SECONDS
+            );
+
+          arrivals.push(
+            delay +
+            duration
+          );
+
+          holder.setAttribute(
+            "position",
+
+            `${startX} ${startY} 0`
+          );
+
+          this.answerArea.appendChild(
+            holder
+          );
+
+          setTimeout(
+            () => {
+              if (
+                !this.running ||
+                this.locked
+              ) {
+                return;
+              }
+
+              holder.setAttribute(
+                "animation__move",
+
+                `
+                property: position;
+                to: ${endX} ${endY} ${endZ};
+                dur: ${duration * 1000};
+                easing: linear
+                `
+              );
+            },
+
+            delay * 1000
+          );
+        }
+      );
+
+      this.fallTimer =
+        setTimeout(
+          () => {
+            this.missed();
+          },
+
+          Math.min(
+            ...arrivals
+          ) *
+          1000
+        );
+
+      this.updateHud();
+    },
+
+    choose(
+      hitbox
+    ) {
+      if (
+        !this.running ||
+        this.locked
+      ) {
+        return;
+      }
+
+      if (
+        !hitbox ||
+        hitbox.dataset.disabled ===
+        "true"
+      ) {
+        return;
+      }
+
+      const index =
+        Number(
+          hitbox.dataset.index
+        );
+
+      const question =
+        this.questionOrder[
+          this.q
+        ];
+
+      const answer =
+        question.answers[
+          index
+        ];
+
+      if (
+        answer.correct
+      ) {
+        this.locked =
+          true;
+
+        clearTimeout(
+          this.fallTimer
+        );
+
+        this.score +=
+          POINTS_CORRECT;
+
+        audio.correct();
+
+        this.feedback.setAttribute(
+          "visible",
+          true
+        );
+
+        this.feedback.setAttribute(
+          "color",
+          COLOURS.correct
+        );
+
+        document
+          .querySelector(
+            "#xrFeedbackText"
+          )
+          .setAttribute(
+            "value",
+
+            `CORRECT +${POINTS_CORRECT}\n${question.explanation}`
+          );
+
+        this.updateHud();
+
+        setTimeout(
+          () => {
+            this.q++;
+
+            this.showQuestion();
+          },
+
+          1800
+        );
+      }
+
+      else {
+        this.score +=
+          POINTS_WRONG;
+
+        hitbox.dataset.disabled =
+          "true";
+
+        hitbox.classList.remove(
+          "shootable"
+        );
+
+        audio.wrong();
+
+        this.feedback.setAttribute(
+          "visible",
+          true
+        );
+
+        this.feedback.setAttribute(
+          "color",
+          COLOURS.wrong
+        );
+
+        document
+          .querySelector(
+            "#xrFeedbackText"
+          )
+          .setAttribute(
+            "value",
+
+            `WRONG ${POINTS_WRONG}\nTry another target.`
+          );
+
+        this.updateHud();
+      }
+    },
+
+    missed() {
+      if (
+        !this.running ||
+        this.locked
+      ) {
+        return;
+      }
+
+      this.locked =
+        true;
+
+      this.score +=
+        POINTS_MISSED;
+
+      audio.explode();
+
+      this.feedback.setAttribute(
+        "visible",
+        true
+      );
+
+      this.feedback.setAttribute(
+        "color",
+        COLOURS.wrong
+      );
+
+      document
+        .querySelector(
+          "#xrFeedbackText"
+        )
+        .setAttribute(
+          "value",
+
+          `TOO SLOW ${POINTS_MISSED}`
+        );
+
+      this.updateHud();
+
+      setTimeout(
+        () => {
+          this.q++;
+
+          this.showQuestion();
+        },
+
+        1200
+      );
+    },
+
+    stop() {
+      this.end(
+        "Game stopped."
+      );
+    },
+
+    end(
+      reason
+    ) {
+      this.running =
+        false;
+
+      clearInterval(
+        this.timer
+      );
+
+      clearTimeout(
+        this.fallTimer
+      );
+
+      clearXRHighlight();
+
+      document
+        .querySelector(
+          "#xrQuizRoot"
+        )
+        .setAttribute(
+          "visible",
+          false
+        );
+
+      document
+        .querySelector(
+          "#xrGameOver"
+        )
+        .setAttribute(
+          "visible",
+          true
+        );
+
+      const elapsed =
+        Math.max(
+          0,
+
+          Math.round(
+            (
+              performance.now() -
+              this.startTime
+            ) /
+            1000
+          )
+        );
+
+      document
+        .querySelector(
+          "#xrGameOverReason"
+        )
+        .setAttribute(
+          "value",
+          reason
+        );
+
+      document
+        .querySelector(
+          "#xrGameOverScore"
+        )
+        .setAttribute(
+          "value",
+
+          `Your Score: ${this.score}`
+        );
+
+      document
+        .querySelector(
+          "#xrGameOverTime"
+        )
+        .setAttribute(
+          "value",
+
+          `Time Taken: ${elapsed} seconds`
+        );
+    }
+  }
+);
+
+/* =========================================================
+   QUEST CONTROLLER
+   ========================================================= */
+
+AFRAME.registerComponent(
+  "quest-shooter",
+  {
+    init() {
+      this.el.addEventListener(
+        "triggerdown",
+        () => {
+          const game =
+            document
+              .querySelector(
+                "#gameManager"
+              )
+              .components[
+                "xr-quiz-game"
+              ];
+
+          const raycaster =
+            this.el.components
+              .raycaster;
+
+          if (
+            !raycaster ||
+            !raycaster.intersections ||
+            raycaster.intersections.length ===
+            0
+          ) {
+            return;
+          }
+
+          const hit =
+            raycaster
+              .intersections[0]
+              .object.el;
+
+          if (
+            !hit ||
+            !hit.classList.contains(
+              "shootable"
+            )
+          ) {
+            return;
+          }
+
+          audio.shoot();
+
+          game.choose(
+            hit
+          );
+        }
+      );
+    }
+  }
+);
+
+/* =========================================================
+   NATIVE MOBILE WEBXR SCREEN INPUT
+   ========================================================= */
+
+AFRAME.registerComponent(
+  "mobile-screen-shooter",
+  {
+    init() {
+      this.session =
+        null;
+
+      this.referenceSpace =
+        null;
+
+      this.activeScreenInput =
+        null;
+
+      this.currentTarget =
+        null;
+
+      this.mobileFrameHandle =
+        null;
+
+      this.boundXRFrame =
+        this.onXRFrame.bind(
+          this
+        );
+
+      this.el.sceneEl.addEventListener(
+        "enter-vr",
+        () => {
+          this.attachToSession();
+        }
+      );
+
+      this.el.sceneEl.addEventListener(
+        "exit-vr",
+        () => {
+          this.detachFromSession();
+        }
+      );
+    },
+
+    attachToSession() {
+      const renderer =
+        this.el.sceneEl.renderer;
+
+      if (
+        !renderer ||
+        !renderer.xr
+      ) {
+        return;
+      }
+
+      const session =
+        renderer.xr.getSession();
+
+      if (!session) {
+        return;
+      }
+
+      this.session =
+        session;
+
+      this.referenceSpace =
+        renderer.xr
+          .getReferenceSpace();
+
+      this.onSelectStartBound =
+        this.onSelectStart.bind(
+          this
+        );
+
+      this.onSelectBound =
+        this.onSelect.bind(
+          this
+        );
+
+      this.onSelectEndBound =
+        this.onSelectEnd.bind(
+          this
+        );
+
+      session.addEventListener(
+        "selectstart",
+        this.onSelectStartBound
+      );
+
+      session.addEventListener(
+        "select",
+        this.onSelectBound
+      );
+
+      session.addEventListener(
+        "selectend",
+        this.onSelectEndBound
+      );
+
+      this.updateStatus(
+        "Touch and drag on the camera view to aim"
+      );
+    },
+
+    detachFromSession() {
+      if (this.session) {
+        if (
+          this.onSelectStartBound
+        ) {
+          this.session.removeEventListener(
+            "selectstart",
+            this.onSelectStartBound
+          );
+        }
+
+        if (
+          this.onSelectBound
+        ) {
+          this.session.removeEventListener(
+            "select",
+            this.onSelectBound
+          );
+        }
+
+        if (
+          this.onSelectEndBound
+        ) {
+          this.session.removeEventListener(
+            "selectend",
+            this.onSelectEndBound
+          );
+        }
+      }
+
+      this.activeScreenInput =
+        null;
+
+      this.currentTarget =
+        null;
+
+      this.session =
+        null;
+
+      this.referenceSpace =
+        null;
+
+      clearXRHighlight();
+    },
+
+    isScreenInput(
+      inputSource
+    ) {
+      return (
+        inputSource &&
+        inputSource.targetRayMode ===
+        "screen"
+      );
+    },
+
+    onSelectStart(
+      event
+    ) {
+      if (
+        !mobileMRMode
+      ) {
+        return;
+      }
+
+      if (
+        !this.isScreenInput(
+          event.inputSource
+        )
+      ) {
+        return;
+      }
+
+      this.activeScreenInput =
+        event.inputSource;
+
+      this.updateTargetFromFrame(
+        event.frame,
+        event.inputSource
+      );
+
+      this.startXRFrameLoop();
+
+      this.updateStatus(
+        "Move your finger to aim"
+      );
+    },
+
+    onSelect(
+      event
+    ) {
+      if (
+        !mobileMRMode
+      ) {
+        return;
+      }
+
+      if (
+        !this.isScreenInput(
+          event.inputSource
+        )
+      ) {
+        return;
+      }
+
+      /*
+       * Refresh the ray at the final
+       * position before selecting.
+       */
+
+      this.updateTargetFromFrame(
+        event.frame,
+        event.inputSource
+      );
+
+      const target =
+        this.currentTarget;
+
+      if (
+        !target ||
+        !target.classList.contains(
+          "shootable"
+        )
+      ) {
+        this.updateStatus(
+          "No target selected"
+        );
+
+        return;
+      }
+
+      const game =
+        document
+          .querySelector(
+            "#gameManager"
+          )
+          .components[
+            "xr-quiz-game"
+          ];
+
+      if (
+        !game ||
+        !game.running ||
+        game.locked
+      ) {
+        return;
+      }
+
+      audio.shoot();
+
+      game.choose(
+        target
+      );
+    },
+
+    onSelectEnd(
+      event
+    ) {
+      if (
+        !this.isScreenInput(
+          event.inputSource
+        )
+      ) {
+        return;
+      }
+
+      this.activeScreenInput =
+        null;
+
+      this.updateStatus(
+        "Touch and drag to aim"
+      );
+    },
+
+    startXRFrameLoop() {
+      if (
+        !this.session
+      ) {
+        return;
+      }
+
+      this.session.requestAnimationFrame(
+        this.boundXRFrame
+      );
+    },
+
+    onXRFrame(
+      time,
+      frame
+    ) {
+      if (
+        !this.session
+      ) {
+        return;
+      }
+
+      if (
+        mobileMRMode &&
+        this.activeScreenInput
+      ) {
+        this.updateTargetFromFrame(
+          frame,
+          this.activeScreenInput
+        );
+      }
+
+      this.session.requestAnimationFrame(
+        this.boundXRFrame
+      );
+    },
+
+    updateTargetFromFrame(
+      frame,
+      inputSource
+    ) {
+      if (
+        !frame ||
+        !inputSource ||
+        !this.referenceSpace
+      ) {
+        return;
+      }
+
+      const pose =
+        frame.getPose(
+          inputSource.targetRaySpace,
+          this.referenceSpace
+        );
+
+      if (!pose) {
+        return;
+      }
+
+      const position =
+        new THREE.Vector3(
+          pose.transform.position.x,
+          pose.transform.position.y,
+          pose.transform.position.z
+        );
+
+      const quaternion =
+        new THREE.Quaternion(
+          pose.transform.orientation.x,
+          pose.transform.orientation.y,
+          pose.transform.orientation.z,
+          pose.transform.orientation.w
+        );
+
+      /*
+       * WebXR target ray points
+       * forward along local -Z.
+       */
+
+      const direction =
+        new THREE.Vector3(
+          0,
+          0,
+          -1
+        );
+
+      direction.applyQuaternion(
+        quaternion
+      );
+
+      direction.normalize();
+
+      this.updateDebugRay(
+        position,
+        direction
+      );
+
+      const raycaster =
+        new THREE.Raycaster(
+          position,
+          direction,
+          0,
+          6
+        );
+
+      const shootableMeshes =
+        [];
+
+      document
+        .querySelectorAll(
+          ".shootable"
+        )
+        .forEach(
+          (entity) => {
+            if (
+              entity.dataset.disabled ===
+              "true"
+            ) {
+              return;
+            }
+
+            const object3D =
+              entity.object3D;
+
+            if (!object3D) {
+              return;
+            }
+
+            object3D.traverse(
+              (child) => {
+                if (
+                  child.isMesh
+                ) {
+                  child.userData.mobileTargetEntity =
+                    entity;
+
+                  shootableMeshes.push(
+                    child
+                  );
+                }
+              }
+            );
+          }
+        );
+
+      const intersections =
+        raycaster.intersectObjects(
+          shootableMeshes,
+          true
+        );
+
+      if (
+        intersections.length ===
+        0
+      ) {
+        if (
+          this.currentTarget
+        ) {
+          this.currentTarget =
+            null;
+
+          clearXRHighlight();
+
+          this.updateStatus(
+            "Move finger over a target"
+          );
+        }
+
+        return;
+      }
+
+      let target =
+        null;
+
+      /*
+       * Walk up the Three.js object hierarchy
+       * until we find the A-Frame target.
+       */
+
+      let object =
+        intersections[0].object;
+
+      while (
+        object &&
+        !target
+      ) {
+        if (
+          object.userData &&
+          object.userData.mobileTargetEntity
+        ) {
+          target =
+            object.userData
+              .mobileTargetEntity;
+
+          break;
+        }
+
+        object =
+          object.parent;
+      }
+
+      if (!target) {
+        return;
+      }
+
+      if (
+        target ===
+        this.currentTarget
+      ) {
+        return;
+      }
+
+      this.currentTarget =
+        target;
+
+      const holder =
+        target.closest(
+          ".xr-answer-holder"
+        );
+
+      if (holder) {
+        showXRHighlight(
+          holder,
+          XR_TARGET_WIDTH +
+          0.07,
+
+          XR_TARGET_HEIGHT +
+          0.07
+        );
+      }
+
+      this.updateStatus(
+        "TARGET LOCKED - release to shoot"
+      );
+    },
+
+    updateStatus(
+      text
+    ) {
+      const element =
+        document.getElementById(
+          "mobileMRStatus"
+        );
+
+      if (element) {
+        element.textContent =
+          text;
+      }
+    },
+
+    updateDebugRay(
+      position,
+      direction
+    ) {
+      /*
+       * Draw a visible cyan line so we can
+       * see the native mobile WebXR ray.
+       */
+
+      const line =
+        document.querySelector(
+          "#mobileNativeRay"
+        );
+
+      if (!line) {
+        return;
+      }
+
+      const end =
+        position
+          .clone()
+          .add(
+            direction
+              .clone()
+              .multiplyScalar(
+                4
+              )
+          );
+
+      line.setAttribute(
+        "line",
+
+        `start: ${position.x} ${position.y} ${position.z}; ` +
+        `end: ${end.x} ${end.y} ${end.z}; ` +
+        `color: #22D3EE; ` +
+        `opacity: 0.95`
+      );
+
+      line.setAttribute(
+        "visible",
+        true
+      );
+    }
+  }
+);
+
+/* =========================================================
+   DESKTOP GAME
+   ========================================================= */
+
+const pc = {
+  score: 0,
+  q: 0,
+  timeLeft: GAME_DURATION,
+  running: false,
+  locked: false,
+  timer: null,
+  fallTimer: null,
+  questionOrder: [],
+  startTime: null,
+
+  start() {
+    audio.init();
+
+    document.querySelector(
+      "#modeScreen"
+    ).style.display =
+      "none";
+
+    document.querySelector(
+      "a-scene"
+    ).style.display =
+      "none";
+
+    document.querySelector(
+      "#pcGame"
+    ).style.display =
+      "block";
+
+    this.score = 0;
+
+    this.q = 0;
+
+    this.timeLeft =
+      GAME_DURATION;
+
+    this.running =
+      true;
+
+    this.locked =
+      false;
+
+    this.questionOrder =
+      shuffledQuestions();
+
+    this.startTime =
+      performance.now();
+
+    this.updateHud();
+
+    this.showQuestion();
+
+    clearInterval(
+      this.timer
+    );
+
+    this.timer =
+      setInterval(
+        () => {
+          if (
+            !this.running
+          ) {
+            return;
+          }
+
+          this.timeLeft--;
+
+          this.updateHud();
+
+          if (
+            this.timeLeft <= 0
+          ) {
+            this.end(
+              "Time is up!"
+            );
+          }
+        },
+        1000
+      );
+  },
+
+  updateHud() {
+    document.querySelector(
+      "#pcScore"
+    ).textContent =
+      `Score: ${this.score}`;
+
+    document.querySelector(
+      "#pcTime"
+    ).textContent =
+      `Time: ${this.timeLeft}`;
+
+    document.querySelector(
+      "#pcProgress"
+    ).textContent =
+      `Question ${Math.min(this.q + 1, this.questionOrder.length)} / ${this.questionOrder.length}`;
+  },
+
+  showQuestion() {
+    if (
+      !this.running
+    ) {
+      return;
+    }
+
+    if (
+      this.q >=
+      this.questionOrder.length
+    ) {
+      this.end(
+        "Challenge complete!"
+      );
+
+      return;
+    }
+
+    this.locked =
+      false;
+
+    clearTimeout(
+      this.fallTimer
+    );
+
+    const arena =
+      document.querySelector(
+        "#pcArena"
+      );
+
+    arena.innerHTML =
+      "";
+
+    const question =
+      this.questionOrder[
+        this.q
+      ];
+
+    document.querySelector(
+      "#pcQuestion"
+    ).textContent =
+      question.question;
+
+    const lanes =
+      [20, 50, 80];
+
+    lanes.sort(
+      () =>
+        Math.random() -
+        0.5
+    );
+
+    const arrivals =
+      [];
+
+    question.answers.forEach(
+      (
+        answer,
+        index
+      ) => {
+        const target =
+          document.createElement(
+            "div"
+          );
+
+        target.className =
+          "pcTarget";
+
+        target.style.left =
+          `calc(${lanes[index]}% - 45px)`;
+
+        target.style.top =
+          "-70px";
+
+        target.innerHTML =
+          answer.label.replace(
+            /\n/g,
+            "<br>"
+          );
+
+        target.onclick =
+          () => {
+            if (
+              this.locked
+            ) {
+              return;
+            }
+
+            if (
+              answer.correct
+            ) {
+              this.locked =
+                true;
+
+              clearTimeout(
+                this.fallTimer
+              );
+
+              this.score +=
+                POINTS_CORRECT;
+
+              target.style.background =
+                COLOURS.correct;
+
+              audio.correct();
+
+              this.feedback(
+                `CORRECT +${POINTS_CORRECT}`
+              );
+
+              this.updateHud();
+
+              setTimeout(
+                () => {
+                  this.q++;
+
+                  this.showQuestion();
+                },
+                1500
+              );
+            }
+
+            else {
+              this.score +=
+                POINTS_WRONG;
+
+              target.style.background =
+                COLOURS.wrong;
+
+              target.style.pointerEvents =
+                "none";
+
+              audio.wrong();
+
+              this.feedback(
+                `WRONG ${POINTS_WRONG}`
+              );
+
+              this.updateHud();
+            }
+          };
+
+        arena.appendChild(
+          target
+        );
+
+        const delay =
+          randomBetween(
+            0,
+            MAX_DROP_DELAY_SECONDS
+          );
+
+        const duration =
+          randomBetween(
+            MIN_FALL_SECONDS,
+            MAX_FALL_SECONDS
+          );
+
+        arrivals.push(
+          delay +
+          duration
+        );
+
+        setTimeout(
+          () => {
+            target.style.transition =
+              `top ${duration}s linear`;
+
+            target.style.top =
+              `calc(100% - 70px)`;
+          },
+
+          delay * 1000
+        );
+      }
+    );
+
+    this.fallTimer =
+      setTimeout(
+        () => {
+          if (
+            this.locked
+          ) {
+            return;
+          }
+
+          this.locked =
+            true;
+
+          this.score +=
+            POINTS_MISSED;
+
+          audio.explode();
+
+          this.feedback(
+            `TOO SLOW ${POINTS_MISSED}`
+          );
+
+          this.updateHud();
+
+          setTimeout(
+            () => {
+              this.q++;
+
+              this.showQuestion();
+            },
+            1000
+          );
+        },
+
+        Math.min(
+          ...arrivals
+        ) *
+        1000
+      );
+  },
+
+  feedback(
+    message
+  ) {
+    const feedback =
+      document.querySelector(
+        "#pcFeedback"
+      );
+
+    feedback.textContent =
+      message;
+
+    feedback.style.display =
+      "block";
+
+    setTimeout(
+      () => {
+        feedback.style.display =
+          "none";
+      },
+      1000
+    );
+  },
+
+  end(
+    reason
+  ) {
+    this.running =
+      false;
+
+    clearInterval(
+      this.timer
+    );
+
+    clearTimeout(
+      this.fallTimer
+    );
+
+    const elapsed =
+      Math.round(
+        (
+          performance.now() -
+          this.startTime
+        ) /
+        1000
+      );
+
+    document.querySelector(
+      "#pcGameOverText"
+    ).textContent =
+      `${reason} Score: ${this.score}. Time: ${elapsed} seconds.`;
+
+    document.querySelector(
+      "#pcGameOver"
+    ).style.display =
+      "flex";
+  }
+};
+
+/* =========================================================
+   DEVICE DETECTION
+   ========================================================= */
+
+let mobileMRMode =
+  false;
+
+function isAndroidTouch() {
+  return (
+    /Android/i.test(
+      navigator.userAgent
+    ) &&
+    (
+      navigator.maxTouchPoints >
+      0 ||
+      "ontouchstart" in window
+    )
+  );
+}
+
+async function detectModes() {
+  document.querySelector(
+    "#desktopButton"
+  ).style.display =
+    "inline-block";
+
+  const status =
+    document.querySelector(
+      "#modeStatus"
+    );
+
+  if (
+    !window.isSecureContext
+  ) {
+    status.textContent =
+      "Mixed Reality requires HTTPS.";
+
+    return;
+  }
+
+  if (
+    !navigator.xr
+  ) {
+    status.textContent =
+      "WebXR is unavailable in this browser.";
+
+    return;
+  }
+
+  try {
+    const arSupported =
+      await navigator.xr
+        .isSessionSupported(
+          "immersive-ar"
+        );
+
+    if (
+      !arSupported
+    ) {
+      status.textContent =
+        "Immersive AR is not supported.";
+
+      return;
+    }
+
+    if (
+      isAndroidTouch()
+    ) {
+      document.querySelector(
+        "#mobileMRButton"
+      ).style.display =
+        "inline-block";
+
+      document.querySelector(
+        "#modeDescription"
+      ).textContent =
+        "Android Chrome detected. Enter Mobile Mixed Reality, then touch and drag on the camera view to aim.";
+
+      status.textContent =
+        "Mobile Mixed Reality is available.";
+    }
+
+    else {
+      document.querySelector(
+        "#questMRButton"
+      ).style.display =
+        "inline-block";
+
+      document.querySelector(
+        "#modeDescription"
+      ).textContent =
+        "Meta Quest detected. Enter Mixed Reality and use the right controller.";
+
+      status.textContent =
+        "Mixed Reality is available.";
+    }
+  }
+
+  catch (
+    error
+  ) {
+    console.error(
+      error
+    );
+
+    status.textContent =
+      "Could not check WebXR support.";
+  }
+}
+
+/* =========================================================
+   INITIALISE
+   ========================================================= */
+
+window.addEventListener(
+  "DOMContentLoaded",
+  () => {
+    detectModes();
+
+    const scene =
+      document.querySelector(
+        "a-scene"
+      );
+
+    document.querySelector(
+      "#desktopButton"
+    ).onclick =
+      () => {
+        pc.start();
+      };
+
+    document.querySelector(
+      "#pcRestart"
+    ).onclick =
+      () => {
+        document.querySelector(
+          "#pcGameOver"
+        ).style.display =
+          "none";
+
+        pc.start();
+      };
+
+    document.querySelector(
+      "#pcStop"
+    ).onclick =
+      () => {
+        pc.end(
+          "Game stopped."
+        );
+      };
+
+    document.querySelector(
+      "#questMRButton"
+    ).onclick =
+      async () => {
+        mobileMRMode =
+          false;
+
+        audio.init();
+
+        document.querySelector(
+          "#modeScreen"
+        ).style.display =
+          "none";
+
+        try {
+          await scene.enterAR();
+        }
+
+        catch (
+          error
+        ) {
+          console.error(
+            error
+          );
+
+          document.querySelector(
+            "#modeScreen"
+          ).style.display =
+            "flex";
+        }
+      };
+
+    document.querySelector(
+      "#mobileMRButton"
+    ).onclick =
+      async () => {
+        mobileMRMode =
+          true;
+
+        audio.init();
+
+        document.querySelector(
+          "#modeScreen"
+        ).style.display =
+          "none";
+
+        try {
+          await scene.enterAR();
+
+          document.querySelector(
+            "#mobileMRUI"
+          ).style.display =
+            "block";
+        }
+
+        catch (
+          error
+        ) {
+          console.error(
+            error
+          );
+
+          mobileMRMode =
+            false;
+
+          document.querySelector(
+            "#mobileMRUI"
+          ).style.display =
+            "none";
+
+          document.querySelector(
+            "#modeScreen"
+          ).style.display =
+            "flex";
+
+          document.querySelector(
+            "#modeStatus"
+          ).textContent =
+            "Could not enter Mobile Mixed Reality.";
+        }
+      };
+
+    scene.addEventListener(
+      "exit-vr",
+      () => {
+        mobileMRMode =
+          false;
+
+        document.querySelector(
+          "#mobileMRUI"
+        ).style.display =
+          "none";
+
+        document.querySelector(
+          "#mobileNativeRay"
+        ).setAttribute(
+          "visible",
+          false
+        );
+
+        document.querySelector(
+          "#modeScreen"
+        ).style.display =
+          "flex";
+      }
+    );
+  }
+);
+</script>
+</head>
+
+<body>
+
+<!-- =======================================================
+     START SCREEN
+     ======================================================= -->
+
+<div id="modeScreen">
+
+  <div class="card">
+
+    <h1>
+      MHA XR Safety Challenge
+    </h1>
+
+    <p id="modeDescription">
+      Checking your device...
+    </p>
+
+    <button
+      id="questMRButton"
+      type="button"
+      style="display:none"
+    >
+      Enter Mixed Reality
+    </button>
+
+    <button
+      id="mobileMRButton"
+      type="button"
+      style="display:none"
+    >
+      Enter Mobile Mixed Reality
+    </button>
+
+    <button
+      id="desktopButton"
+      type="button"
+      style="display:none"
+    >
+      Play Personal Computer Version
+    </button>
+
+    <div
+      id="modeStatus"
+      style="
+        margin-top:16px;
+        color:#cbd5e1;
+      "
+    ></div>
+
+  </div>
+
+</div>
+
+<!-- =======================================================
+     MOBILE MR UI
+     ======================================================= -->
+
+<div id="mobileMRUI">
+
+  <div id="mobileMRHelp">
+    Touch and drag on the camera view to aim.
+    <br>
+
+    <span id="mobileMRStatus">
+      Waiting for touch input...
+    </span>
+  </div>
+
+  <div id="mobileMRHint">
+    Keep your finger on the screen and move it over a target.
+    Release to shoot.
+  </div>
+
+</div>
+
+<!-- =======================================================
+     DESKTOP
+     ======================================================= -->
+
+<div id="pcGame">
+
+  <button
+    id="pcStop"
+    type="button"
+  >
+    Stop Game
+  </button>
+
+  <div id="pcHud">
+
+    <div id="pcQuestion">
+      Question
+    </div>
+
+    <div id="pcStats">
+
+      <span id="pcProgress">
+        Question
+      </span>
+
+      <span id="pcScore">
+        Score: 0
+      </span>
+
+      <span id="pcTime">
+        Time: 60
+      </span>
+
+    </div>
+
+  </div>
+
+  <div id="pcArena"></div>
+
+  <div id="pcFeedback"></div>
+
+  <div id="pcGameOver">
+
+    <div class="card">
+
+      <h1>
+        Challenge Complete
+      </h1>
+
+      <p id="pcGameOverText"></p>
+
+      <button
+        id="pcRestart"
+        type="button"
+      >
+        Restart
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- =======================================================
+     MIXED REALITY SCENE
+     ======================================================= -->
+
+<a-scene
+  xr-mode-ui="XRMode: ar"
+
+  renderer="
+    alpha:true;
+    colorManagement:true;
+    antialias:true
+  "
+
+  background="
+    transparent:true
+  "
+
+  webxr="
+    referenceSpaceType:local-floor;
+    optionalFeatures:local-floor
+  "
+>
+
+  <!-- =====================================================
+       CAMERA
+       ===================================================== -->
+
+  <a-camera
+    id="mainCamera"
+
+    position="
+      0 1.6 0
+    "
+
+    wasd-controls-enabled="
+      false
+    "
+  ></a-camera>
+
+  <!-- =====================================================
+       DEBUG MOBILE NATIVE XR RAY
+       ===================================================== -->
+
+  <a-entity
+    id="mobileNativeRay"
+
+    visible="false"
+
+    line="
+      start:0 0 0;
+      end:0 0 -4;
+      color:#22D3EE;
+      opacity:0.95
+    "
+  ></a-entity>
+
+  <!-- =====================================================
+       LIGHTS
+       ===================================================== -->
+
+  <a-light
+    type="ambient"
+    color="#FFFFFF"
+    intensity="1.5"
+  ></a-light>
+
+  <a-light
+    type="directional"
+    color="#FFFFFF"
+    intensity="1.8"
+    position="-1 3 2"
+  ></a-light>
+
+  <a-light
+    type="directional"
+    color="#FFFFFF"
+    intensity="0.8"
+    position="2 2 1"
+  ></a-light>
+
+  <!-- =====================================================
+       QUEST CONTROLLER
+       ===================================================== -->
+
+  <a-entity
+    id="rightController"
+
+    meta-touch-controls="
+      hand:right
+    "
+
+    raycaster="
+      objects:.shootable;
+      far:6;
+      showLine:true;
+      lineColor:#22D3EE;
+      lineOpacity:0.95
+    "
+
+    quest-shooter
+  ></a-entity>
+
+  <!-- =====================================================
+       GAME MANAGER
+       ===================================================== -->
+
+  <a-entity
+    id="gameManager"
+
+    xr-quiz-game
+
+    mobile-screen-shooter
+  ></a-entity>
+
+  <!-- =====================================================
+       QUESTION AREA
+       ===================================================== -->
+
+  <a-entity
+    id="xrQuizRoot"
+  >
+
+    <a-entity
+      position="
+        0 2.25 -2.7
+      "
+    >
+
+      <a-box
+        width="2.75"
+        height="0.56"
+        depth="0.045"
+
+        color="#0F172A"
+
+        opacity="0.94"
+      ></a-box>
+
+      <a-text
+        id="xrQuestion"
+
+        value="Question"
+
+        position="
+          0 0.07 0.04
+        "
+
+        width="2.35"
+
+        align="center"
+
+        wrap-count="48"
+      ></a-text>
+
+      <a-text
+        id="xrProgress"
+
+        value="
+          Question 1 / 6
+        "
+
+        position="
+          -1.12 -0.18 0.04
+        "
+
+        width="1.05"
+
+        color="#93C5FD"
+      ></a-text>
+
+      <a-text
+        id="xrScore"
+
+        value="
+          Score: 0
+        "
+
+        position="
+          0.35 -0.18 0.04
+        "
+
+        width="0.95"
+      ></a-text>
+
+      <a-text
+        id="xrTime"
+
+        value="
+          Time: 60
+        "
+
+        position="
+          0.85 -0.18 0.04
+        "
+
+        width="0.95"
+
+        color="#FACC15"
+      ></a-text>
+
+    </a-entity>
+
+    <a-entity
+      id="xrAnswerArea"
+
+      position="
+        0 0 -2.7
+      "
+    ></a-entity>
+
+    <a-box
+      id="xrFeedback"
+
+      position="
+        0 0.42 -2.55
+      "
+
+      width="3.0"
+      height="0.5"
+      depth="0.04"
+
+      color="#16A34A"
+
+      visible="false"
+    >
+
+      <a-text
+        id="xrFeedbackText"
+
+        value=""
+
+        position="
+          0 0 0.03
+        "
+
+        width="2.7"
+
+        align="center"
+
+        wrap-count="48"
+      ></a-text>
+
+    </a-box>
+
+  </a-entity>
+
+  <!-- =====================================================
+       GAME OVER
+       ===================================================== -->
+
+  <a-entity
+    id="xrGameOver"
+
+    position="
+      0 1.5 -2.3
+    "
+
+    visible="false"
+  >
+
+    <a-box
+      width="2.9"
+      height="1.55"
+      depth="0.06"
+
+      color="#111827"
+
+      opacity="0.96"
+    ></a-box>
+
+    <a-text
+      value="
+        CHALLENGE COMPLETE
+      "
+
+      position="
+        0 0.48 0.04
+      "
+
+      width="3.1"
+
+      align="center"
+
+      color="#FACC15"
+    ></a-text>
+
+    <a-text
+      id="xrGameOverReason"
+
+      value=""
+
+      position="
+        0 0.17 0.04
+      "
+
+      width="2.4"
+
+      align="center"
+    ></a-text>
+
+    <a-text
+      id="xrGameOverScore"
+
+      value="
+        Your Score: 0
+      "
+
+      position="
+        0 -0.06 0.04
+      "
+
+      width="2.8"
+
+      align="center"
+    ></a-text>
+
+    <a-text
+      id="xrGameOverTime"
+
+      value="
+        Time Taken: 0 seconds
+      "
+
+      position="
+        0 -0.27 0.04
+      "
+
+      width="2.4"
+
+      align="center"
+
+      color="#BFDBFE"
+    ></a-text>
+
+  </a-entity>
+
+</a-scene>
+
+</body>
+</html>
