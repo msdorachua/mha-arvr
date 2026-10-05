@@ -1,0 +1,959 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>P.A.S.S. Fire Extinguisher Drill - WebXR Training</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <link type="text/css" rel="stylesheet" href="https://xrblocks.github.io/css/xr.css" />
+    <script>window.litDisableBundleWarning = true;</script>
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+        "three/": "https://cdn.jsdelivr.net/npm/three@0.184.0/",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/",
+        "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@1.0.64/dist/index.min.js",
+        "@pmndrs/uikit-pub-sub": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit-pub-sub@1.0.64/dist/index.min.js",
+        "@pmndrs/msdfonts": "https://cdn.jsdelivr.net/npm/@pmndrs/msdfonts@1.0.64/dist/index.min.js",
+        "@preact/signals-core": "https://cdn.jsdelivr.net/npm/@preact/signals-core@1.14.0/dist/signals-core.mjs",
+        "yoga-layout/load": "https://cdn.jsdelivr.net/npm/yoga-layout@3.2.1/dist/src/load.js",
+        "lit": "https://esm.sh/lit@3.3.1",
+        "lit/": "https://esm.sh/lit@3.3.1/",
+        "xrblocks": "https://cdn.jsdelivr.net/npm/xrblocks@0.21.1/build/xrblocks.js",
+        "xrblocks/addons/": "https://cdn.jsdelivr.net/npm/xrblocks@0.21.1/build/addons/"
+      }
+    }
+    </script>
+    <style>
+      body, html {
+        margin: 0; padding: 0; width: 100%; height: 100%;
+        overflow: hidden; background-color: #080c14;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        touch-action: none; user-select: none; -webkit-user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      import * as THREE from 'three';
+      import * as xb from 'xrblocks';
+
+      // --- 1. PROCEDURAL WEB AUDIO SYNTHESIZER ---
+      class SoundFX {
+        constructor() {
+          this.ctx = null;
+          this.crackleNode = null;
+          this.crackleGain = null;
+          this.sprayNode = null;
+          this.sprayGain = null;
+        }
+
+        ensureContext() {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioCtx();
+          }
+          if (this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(() => {});
+          }
+        }
+
+        // Ambient Fire Crackle Loop
+        startCrackle() {
+          try {
+            this.ensureContext();
+            if (this.crackleNode) return;
+            const bufferSize = this.ctx.sampleRate * 2;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+              data[i] = (Math.random() * 2 - 1) * (Math.random() > 0.95 ? 0.8 : 0.08);
+            }
+            this.crackleNode = this.ctx.createBufferSource();
+            this.crackleNode.buffer = buffer;
+            this.crackleNode.loop = true;
+
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+
+            this.crackleGain = this.ctx.createGain();
+            this.crackleGain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+
+            this.crackleNode.connect(filter);
+            filter.connect(this.crackleGain);
+            this.crackleGain.connect(this.ctx.destination);
+            this.crackleNode.start();
+          } catch (_) {}
+        }
+
+        updateCrackleIntensity(factor) {
+          if (this.crackleGain && this.ctx && this.ctx.state === 'running') {
+            this.crackleGain.gain.setTargetAtTime(Math.max(0.01, factor * 0.35), this.ctx.currentTime, 0.1);
+          }
+        }
+
+        stopCrackle() {
+          if (this.crackleNode) {
+            try { this.crackleNode.stop(); } catch (_) {}
+            this.crackleNode = null;
+          }
+        }
+
+        playPinPull() {
+          try {
+            this.ensureContext();
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(2400, now);
+            osc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
+            gain.gain.setValueAtTime(0.4, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.2);
+          } catch (_) {}
+        }
+
+        startSpray() {
+          try {
+            this.ensureContext();
+            if (this.sprayNode) return;
+            const bufferSize = this.ctx.sampleRate * 2;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+              data[i] = Math.random() * 2 - 1;
+            }
+            this.sprayNode = this.ctx.createBufferSource();
+            this.sprayNode.buffer = buffer;
+            this.sprayNode.loop = true;
+
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(1200, this.ctx.currentTime);
+
+            this.sprayGain = this.ctx.createGain();
+            this.sprayGain.gain.setValueAtTime(0.45, this.ctx.currentTime);
+
+            this.sprayNode.connect(filter);
+            filter.connect(this.sprayGain);
+            this.sprayGain.connect(this.ctx.destination);
+            this.sprayNode.start();
+          } catch (_) {}
+        }
+
+        stopSpray() {
+          if (this.sprayNode) {
+            try { this.sprayNode.stop(); } catch (_) {}
+            this.sprayNode = null;
+          }
+        }
+
+        playWarningBuzzer() {
+          try {
+            this.ensureContext();
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(180, now);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.14);
+          } catch (_) {}
+        }
+
+        playSuccessChime() {
+          try {
+            this.ensureContext();
+            const now = this.ctx.currentTime;
+            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+            notes.forEach((freq, idx) => {
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+              gain.gain.setValueAtTime(0.25, now + idx * 0.08);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.35);
+              osc.connect(gain);
+              gain.connect(this.ctx.destination);
+              osc.start(now + idx * 0.08);
+              osc.stop(now + idx * 0.08 + 0.4);
+            });
+          } catch (_) {}
+        }
+      }
+
+      // --- 2. ZERO-ALLOCATION PARTICLE SYSTEM ---
+      class ParticleSystem {
+        constructor(scene) {
+          this.scene = scene;
+          this.flames = [];
+          this.smokes = [];
+          this.sprays = [];
+
+          const sphereGeo = new THREE.SphereGeometry(0.04, 8, 8);
+          const quadGeo = new THREE.PlaneGeometry(0.12, 0.12);
+
+          const flameMat = new THREE.MeshBasicMaterial({
+            color: 0xff6600,
+            transparent: true,
+            opacity: 0.85,
+            side: THREE.DoubleSide,
+            depthWrite: false
+          });
+
+          const smokeMat = new THREE.MeshBasicMaterial({
+            color: 0x64748b,
+            transparent: true,
+            opacity: 0.4,
+            depthWrite: false
+          });
+
+          const sprayMat = new THREE.MeshBasicMaterial({
+            color: 0xf8fafc,
+            transparent: true,
+            opacity: 0.8,
+            depthWrite: false
+          });
+
+          for (let i = 0; i < 70; i++) {
+            const mesh = new THREE.Mesh(quadGeo, flameMat.clone());
+            mesh.visible = false;
+            mesh.xb = { pointerEvents: 'none' };
+            this.scene.add(mesh);
+            this.flames.push({
+              mesh,
+              vel: new THREE.Vector3(),
+              life: 0,
+              maxLife: 1,
+              baseScale: 1
+            });
+          }
+
+          for (let i = 0; i < 50; i++) {
+            const mesh = new THREE.Mesh(sphereGeo, smokeMat.clone());
+            mesh.visible = false;
+            mesh.xb = { pointerEvents: 'none' };
+            this.scene.add(mesh);
+            this.smokes.push({
+              mesh,
+              vel: new THREE.Vector3(),
+              life: 0,
+              maxLife: 1
+            });
+          }
+
+          for (let i = 0; i < 120; i++) {
+            const mesh = new THREE.Mesh(sphereGeo, sprayMat);
+            mesh.visible = false;
+            mesh.xb = { pointerEvents: 'none' };
+            this.scene.add(mesh);
+            this.sprays.push({
+              mesh,
+              vel: new THREE.Vector3(),
+              life: 0,
+              maxLife: 1
+            });
+          }
+        }
+
+        spawnFlame(basePos, intensity) {
+          if (intensity <= 0.01) return;
+          const p = this.flames.find(f => !f.mesh.visible);
+          if (!p) return;
+
+          const spread = 0.35 * intensity;
+          p.mesh.position.set(
+            basePos.x + (Math.random() - 0.5) * spread,
+            basePos.y + Math.random() * 0.15,
+            basePos.z + (Math.random() - 0.5) * spread
+          );
+          p.vel.set((Math.random() - 0.5) * 0.2, 0.8 + Math.random() * 0.6, (Math.random() - 0.5) * 0.2);
+          p.life = 0;
+          p.maxLife = 0.3 + Math.random() * 0.4;
+          p.baseScale = (0.8 + Math.random() * 1.2) * intensity;
+          p.mesh.scale.setScalar(p.baseScale);
+
+          const col = new THREE.Color(1.0, 0.3 + Math.random() * 0.5, 0.0);
+          p.mesh.material.color.copy(col);
+          p.mesh.material.opacity = 0.85;
+          p.mesh.visible = true;
+        }
+
+        spawnSmoke(basePos, intensity) {
+          if (intensity <= 0.01) return;
+          const p = this.smokes.find(s => !s.mesh.visible);
+          if (!p) return;
+
+          p.mesh.position.set(
+            basePos.x + (Math.random() - 0.5) * 0.4,
+            basePos.y + 0.4 + Math.random() * 0.3,
+            basePos.z + (Math.random() - 0.5) * 0.4
+          );
+          p.vel.set((Math.random() - 0.5) * 0.3, 0.9 + Math.random() * 0.5, (Math.random() - 0.5) * 0.3);
+          p.life = 0;
+          p.maxLife = 1.2 + Math.random() * 0.8;
+          p.mesh.scale.setScalar(1.0 + Math.random() * 0.5);
+          p.mesh.material.opacity = 0.35 * intensity;
+          p.mesh.visible = true;
+        }
+
+        emitSprayStream(origin, targetPos) {
+          const dir = new THREE.Vector3().subVectors(targetPos, origin).normalize();
+          for (let i = 0; i < 4; i++) {
+            const p = this.sprays.find(s => !s.mesh.visible);
+            if (!p) break;
+
+            const spread = 0.08;
+            p.mesh.position.copy(origin).add(
+              new THREE.Vector3(
+                (Math.random() - 0.5) * 0.03,
+                (Math.random() - 0.5) * 0.03,
+                (Math.random() - 0.5) * 0.03
+              )
+            );
+            p.vel.copy(dir)
+              .add(new THREE.Vector3((Math.random() - 0.5) * spread, (Math.random() - 0.5) * spread, (Math.random() - 0.5) * spread))
+              .multiplyScalar(5.5 + Math.random() * 1.5);
+
+            p.life = 0;
+            p.maxLife = 0.45;
+            p.mesh.scale.setScalar(0.8 + Math.random() * 0.8);
+            p.mesh.visible = true;
+          }
+        }
+
+        update(dt, camera) {
+          for (const f of this.flames) {
+            if (!f.mesh.visible) continue;
+            f.life += dt;
+            if (f.life >= f.maxLife) {
+              f.mesh.visible = false;
+              continue;
+            }
+            f.mesh.position.addScaledVector(f.vel, dt);
+            const progress = f.life / f.maxLife;
+            f.mesh.scale.setScalar(f.baseScale * (1.0 - progress * 0.5));
+            f.mesh.material.opacity = 0.85 * (1.0 - progress);
+            if (camera) f.mesh.quaternion.copy(camera.quaternion);
+          }
+
+          for (const s of this.smokes) {
+            if (!s.mesh.visible) continue;
+            s.life += dt;
+            if (s.life >= s.maxLife) {
+              s.mesh.visible = false;
+              continue;
+            }
+            s.mesh.position.addScaledVector(s.vel, dt);
+            const progress = s.life / s.maxLife;
+            s.mesh.scale.setScalar((1.0 + progress * 2.5));
+            s.mesh.material.opacity = 0.35 * (1.0 - progress);
+          }
+
+          for (const sp of this.sprays) {
+            if (!sp.mesh.visible) continue;
+            sp.life += dt;
+            if (sp.life >= sp.maxLife) {
+              sp.mesh.visible = false;
+              continue;
+            }
+            sp.mesh.position.addScaledVector(sp.vel, dt);
+            const progress = sp.life / sp.maxLife;
+            sp.mesh.scale.setScalar((0.8 + progress * 3.2));
+            sp.mesh.material.opacity = 0.8 * (1.0 - progress);
+          }
+        }
+
+        clearAll() {
+          this.flames.forEach(f => f.mesh.visible = false);
+          this.smokes.forEach(s => s.mesh.visible = false);
+          this.sprays.forEach(sp => sp.mesh.visible = false);
+        }
+      }
+
+      // --- 3. MAIN P.A.S.S. DRILL SCRIPT CLASS ---
+      class PASSFireDrillScript extends xb.Script {
+        constructor() {
+          super();
+          this.passStep = 1; // 1: PULL, 2: AIM, 3: SQUEEZE, 4: SWEEP, 5: PASSED
+          this.pinRemoved = false;
+          this.fireHealth = 100.0;
+          this.tankPressure = 100.0;
+          this.elapsedTime = 0.0;
+          this.isPlaying = false;
+          this.isSqueezing = false;
+          this.isAimingBase = false;
+
+          this.lastSweepX = null;
+          this.sweepDistanceAccumulator = 0.0;
+          this.sweepDirection = 0;
+
+          this.fireBasePos = new THREE.Vector3(0, 0.25, -2.5);
+          this.nozzleTipPos = new THREE.Vector3();
+
+          this.raycaster = new THREE.Raycaster();
+          this.pointer = new THREE.Vector2();
+          this.tempMatrix = new THREE.Matrix4();
+          this.rayOrigin = new THREE.Vector3();
+          this.rayDirection = new THREE.Vector3();
+
+          this.boundPointerDown = (e) => this.onPointerDown(e);
+          this.boundPointerUp = (e) => this.onPointerUp(e);
+          this.boundPointerMove = (e) => this.onPointerMove(e);
+        }
+
+        init() {
+          this.sfx = new SoundFX();
+          this.particles = new ParticleSystem(this);
+
+          this.setupEnvironment();
+          this.createWastebasketFireContainer();
+          this.createFireExtinguisher();
+          this.createBaseTargetIndicator();
+
+          this.buildSpatialHUD();
+
+          window.addEventListener('pointerdown', this.boundPointerDown, { passive: false });
+          window.addEventListener('pointerup', this.boundPointerUp);
+          window.addEventListener('pointermove', this.boundPointerMove);
+        }
+
+        setupEnvironment() {
+          const ambientLight = new THREE.HemisphereLight(0x38bdf8, 0x0f172a, 1.8);
+          this.add(ambientLight);
+
+          const dirLight = new THREE.DirectionalLight(0xffedd5, 2.2);
+          dirLight.position.set(3, 5, 2);
+          this.add(dirLight);
+
+          const floorGeo = new THREE.PlaneGeometry(12, 12);
+          const floorMat = new THREE.MeshStandardMaterial({
+            color: 0x1e293b,
+            roughness: 0.75,
+            metalness: 0.25
+          });
+          const floor = new THREE.Mesh(floorGeo, floorMat);
+          floor.rotation.x = -Math.PI / 2;
+          floor.xb = { pointerEvents: 'none' };
+          this.add(floor);
+
+          const standGeo = new THREE.CylinderGeometry(0.2, 0.22, 0.7, 16);
+          const standMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5 });
+          const stand = new THREE.Mesh(standGeo, standMat);
+          stand.position.set(0.55, 0.35, -0.9);
+          stand.xb = { pointerEvents: 'none' };
+          this.add(stand);
+        }
+
+        createWastebasketFireContainer() {
+          const containerGroup = new THREE.Group();
+          const canGeo = new THREE.CylinderGeometry(0.32, 0.28, 0.55, 20, 1, true);
+          const canMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.3, side: THREE.DoubleSide });
+          const canMesh = new THREE.Mesh(canGeo, canMat);
+          canMesh.position.y = 0.275;
+          canMesh.xb = { pointerEvents: 'none' };
+          containerGroup.add(canMesh);
+
+          const bottomGeo = new THREE.CircleGeometry(0.28, 20);
+          const bottomMesh = new THREE.Mesh(bottomGeo, canMat);
+          bottomMesh.rotation.x = Math.PI / 2;
+          bottomMesh.position.y = 0.01;
+          bottomMesh.xb = { pointerEvents: 'none' };
+          containerGroup.add(bottomMesh);
+
+          const trashGeo = new THREE.DodecahedronGeometry(0.18, 0);
+          const trashMat = new THREE.MeshStandardMaterial({ color: 0x1c1917, roughness: 0.9 });
+          const trashMesh = new THREE.Mesh(trashGeo, trashMat);
+          trashMesh.position.set(0, 0.2, 0);
+          trashMesh.xb = { pointerEvents: 'none' };
+          containerGroup.add(trashMesh);
+
+          containerGroup.position.copy(this.fireBasePos);
+          this.add(containerGroup);
+        }
+
+        createFireExtinguisher() {
+          this.extinguisherGroup = new THREE.Group();
+
+          const bodyGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.42, 24);
+          const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.2, metalness: 0.6 });
+          const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+          bodyMesh.position.y = 0.21;
+          bodyMesh.xb = { pointerEvents: 'none' };
+          this.extinguisherGroup.add(bodyMesh);
+
+          const domeGeo = new THREE.SphereGeometry(0.1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+          const domeMesh = new THREE.Mesh(domeGeo, bodyMat);
+          domeMesh.position.y = 0.42;
+          domeMesh.xb = { pointerEvents: 'none' };
+          this.extinguisherGroup.add(domeMesh);
+
+          const valveGeo = new THREE.BoxGeometry(0.06, 0.08, 0.08);
+          const valveMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9, roughness: 0.2 });
+          const valveMesh = new THREE.Mesh(valveGeo, valveMat);
+          valveMesh.position.y = 0.48;
+          valveMesh.xb = { pointerEvents: 'none' };
+          this.extinguisherGroup.add(valveMesh);
+
+          const leverGeo = new THREE.BoxGeometry(0.02, 0.015, 0.16);
+          const leverMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.85, roughness: 0.2 });
+          this.leverMesh = new THREE.Mesh(leverGeo, leverMat);
+          this.leverMesh.position.set(0, 0.52, -0.04);
+          this.leverMesh.rotation.x = -0.15;
+          this.leverMesh.xb = { pointerEvents: 'none' };
+          this.extinguisherGroup.add(this.leverMesh);
+
+          const hoseGeo = new THREE.CylinderGeometry(0.015, 0.02, 0.22, 12);
+          const hoseMat = new THREE.MeshStandardMaterial({ color: 0x171717, roughness: 0.8 });
+          const hoseMesh = new THREE.Mesh(hoseGeo, hoseMat);
+          hoseMesh.position.set(0, 0.46, 0.12);
+          hoseMesh.rotation.x = Math.PI / 2.5;
+          hoseMesh.xb = { pointerEvents: 'none' };
+          this.extinguisherGroup.add(hoseMesh);
+
+          const gaugeGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.012, 16);
+          const gaugeMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, metalness: 0.5, roughness: 0.3 });
+          const gaugeMesh = new THREE.Mesh(gaugeGeo, gaugeMat);
+          gaugeMesh.position.set(0.06, 0.48, 0);
+          gaugeMesh.rotation.z = Math.PI / 2;
+          gaugeMesh.xb = { pointerEvents: 'none' };
+          this.extinguisherGroup.add(gaugeMesh);
+
+          this.pinGroup = new THREE.Group();
+
+          const pinRodGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.09, 12);
+          const pinMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.9, roughness: 0.1 });
+          const pinRod = new THREE.Mesh(pinRodGeo, pinMat);
+          pinRod.rotation.z = Math.PI / 2;
+          this.pinGroup.add(pinRod);
+
+          const ringGeo = new THREE.TorusGeometry(0.025, 0.005, 8, 20);
+          const ringMesh = new THREE.Mesh(ringGeo, pinMat);
+          ringMesh.position.x = -0.05;
+          this.pinGroup.add(ringMesh);
+
+          this.pinGroup.position.set(0.02, 0.50, -0.02);
+
+          this.pinGroup.xb = { pointerEvents: 'auto', reticleMode: 'auto' };
+          this.pinGroup.userData = { isSafetyPin: true };
+          pinRod.xb = { pointerEvents: 'auto' };
+          pinRod.userData = { isSafetyPin: true };
+          ringMesh.xb = { pointerEvents: 'auto' };
+          ringMesh.userData = { isSafetyPin: true };
+
+          this.extinguisherGroup.add(this.pinGroup);
+
+          this.extinguisherGroup.position.set(0.55, 0.70, -0.9);
+          this.add(this.extinguisherGroup);
+        }
+
+        createBaseTargetIndicator() {
+          const ringGeo = new THREE.RingGeometry(0.25, 0.35, 32);
+          this.targetIndicatorMat = new THREE.MeshBasicMaterial({
+            color: 0xef4444,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.75
+          });
+          this.targetIndicator = new THREE.Mesh(ringGeo, this.targetIndicatorMat);
+          this.targetIndicator.rotation.x = -Math.PI / 2;
+          this.targetIndicator.position.set(this.fireBasePos.x, 0.02, this.fireBasePos.z);
+          this.targetIndicator.xb = { pointerEvents: 'none' };
+          this.add(this.targetIndicator);
+        }
+
+        buildSpatialHUD() {
+          this.stepInstructionText = new xb.UIText({
+            text: 'STEP 1: PULL THE PIN\nPoint at and click/pull the yellow safety pin ring on the extinguisher.',
+            style: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: '#fef08a' }
+          });
+
+          this.fireHealthText = new xb.UIText({
+            text: 'FIRE HEALTH: 100%',
+            style: { fontSize: 18, fontWeight: 'bold', color: '#ef4444' }
+          });
+
+          this.pressureText = new xb.UIText({
+            text: 'CHARGE: 100%',
+            style: { fontSize: 18, fontWeight: 'bold', color: '#38bdf8' }
+          });
+
+          this.timerText = new xb.UIText({
+            text: 'TIME: 0.0s',
+            style: { fontSize: 18, fontWeight: 'bold', color: '#e2e8f0' }
+          });
+
+          const statsRow = new xb.UIPanel({
+            style: {
+              width: '100%',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              backgroundColor: 'rgba(15, 23, 42, 0.85)',
+              padding: 10,
+              borderRadius: 12
+            },
+            children: [this.fireHealthText, this.pressureText, this.timerText]
+          });
+
+          const instructionPanel = new xb.UIPanel({
+            style: {
+              width: '100%',
+              backgroundColor: 'rgba(30, 41, 59, 0.95)',
+              borderRadius: 14,
+              borderWidth: 2,
+              borderColor: '#f59e0b',
+              padding: 12,
+              justifyContent: 'center',
+              alignItems: 'center'
+            },
+            children: [this.stepInstructionText]
+          });
+
+          this.statusBanner = new xb.UIText({
+            text: 'P.A.S.S. Protocol Training Bay. Tap Start to ignite drill.',
+            style: { fontSize: 15, fontWeight: 'bold', textAlign: 'center', color: '#94a3b8' }
+          });
+
+          this.startBtn = new xb.UIButton({
+            label: 'Start Drill',
+            icon: 'play_arrow',
+            style: { flexGrow: 1.2 },
+            onClick: () => this.toggleStartPause()
+          });
+
+          const resetBtn = new xb.UIButton({
+            label: 'Reset Drill',
+            icon: 'restart_alt',
+            style: { flexGrow: 0.9 },
+            onClick: () => this.resetDrill()
+          });
+
+          const exitBtn = new xb.UIButton({
+            label: 'Exit VR',
+            icon: 'logout',
+            style: { flexGrow: 0.9 },
+            onClick: () => this.exitVR()
+          });
+
+          const buttonsRow = new xb.UIPanel({
+            style: { width: '100%', flexDirection: 'row', gap: 10, justifyContent: 'center' },
+            children: [this.startBtn, resetBtn, exitBtn]
+          });
+
+          this.hudCard = new xb.UICard({
+            size: { width: 0.92, height: 'auto' },
+            manipulation: false,
+            edge: false,
+            style: {
+              flexDirection: 'column',
+              gap: 10,
+              padding: 16,
+              backgroundColor: 'rgba(11, 19, 43, 0.95)',
+              borderRadius: 20,
+              borderColor: '#38bdf8',
+              borderWidth: 2
+            },
+            children: [statsRow, instructionPanel, this.statusBanner, buttonsRow]
+          });
+
+          this.hudCard.position.set(0, 1.85, -1.25);
+          this.hudCard.rotation.x = 0.12;
+          this.add(this.hudCard);
+        }
+
+        toggleStartPause() {
+          this.sfx.ensureContext();
+          this.isPlaying = !this.isPlaying;
+
+          if (this.isPlaying) {
+            this.startBtn.label = 'Pause';
+            this.startBtn.icon = 'pause';
+            this.sfx.startCrackle();
+            this.statusBanner.text = 'DRILL ACTIVE: Follow the P.A.S.S. steps in order!';
+            this.statusBanner.style.color = '#38bdf8';
+          } else {
+            this.startBtn.label = 'Resume';
+            this.startBtn.icon = 'play_arrow';
+            this.sfx.stopCrackle();
+            this.sfx.stopSpray();
+            this.statusBanner.text = 'Drill paused.';
+            this.statusBanner.style.color = '#94a3b8';
+          }
+        }
+
+        resetDrill() {
+          this.passStep = 1;
+          this.pinRemoved = false;
+          this.fireHealth = 100.0;
+          this.tankPressure = 100.0;
+          this.elapsedTime = 0.0;
+          this.isPlaying = false;
+          this.isSqueezing = false;
+          this.isAimingBase = false;
+
+          if (this.pinGroup) {
+            this.pinGroup.position.set(0.02, 0.50, -0.02);
+            this.pinGroup.visible = true;
+          }
+
+          if (this.leverMesh) this.leverMesh.rotation.x = -0.15;
+
+          this.particles.clearAll();
+          this.sfx.stopCrackle();
+          this.sfx.stopSpray();
+
+          this.fireHealthText.text = 'FIRE HEALTH: 100%';
+          this.fireHealthText.style.color = '#ef4444';
+          this.pressureText.text = 'CHARGE: 100%';
+          this.pressureText.style.color = '#38bdf8';
+          this.timerText.text = 'TIME: 0.0s';
+
+          this.stepInstructionText.text = 'STEP 1: PULL THE PIN\nPoint at and click/pull the yellow safety pin ring on the extinguisher.';
+          this.stepInstructionText.style.color = '#fef08a';
+
+          this.statusBanner.text = 'Drill reset. Tap Start Drill when ready.';
+          this.statusBanner.style.color = '#94a3b8';
+          this.startBtn.label = 'Start Drill';
+          this.startBtn.icon = 'play_arrow';
+          this.targetIndicatorMat.color.setHex(0xef4444);
+        }
+
+        exitVR() {
+          if (xb.core?.renderer?.xr?.isPresenting) {
+            const session = xb.core.renderer.xr.getSession();
+            if (session) session.end();
+          }
+        }
+
+        pullSafetyPin() {
+          if (this.pinRemoved) return;
+
+          this.pinRemoved = true;
+          this.passStep = 2;
+          this.sfx.playPinPull();
+
+          this.pinGroup.position.x += 0.2;
+          setTimeout(() => {
+            if (this.pinGroup) this.pinGroup.visible = false;
+          }, 350);
+
+          this.stepInstructionText.text = 'STEP 2: AIM AT THE BASE\nAim the spray nozzle at the green ring at the base of the fire (not top flames).';
+          this.stepInstructionText.style.color = '#38bdf8';
+          this.statusBanner.text = 'Safety pin removed! Now aim low at the fuel source base.';
+          this.statusBanner.style.color = '#4ade80';
+        }
+
+        onPointerDown(event) {
+          // Allow clicks on buttons/UI elements to pass through without raycast interference
+          if (event.target && event.target.closest && (event.target.closest('button') || event.target.closest('.xb-ui'))) {
+            return;
+          }
+
+          this.sfx.ensureContext();
+          if (!this.isPlaying || this.passStep === 5) return;
+
+          const rect = xb.core.renderer.domElement.getBoundingClientRect();
+          this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+          this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+          this.raycaster.setFromCamera(this.pointer, xb.core.camera);
+          const intersects = this.raycaster.intersectObjects(this.extinguisherGroup.children, true);
+
+          for (const hit of intersects) {
+            if (hit.object?.userData?.isSafetyPin || hit.object?.parent?.userData?.isSafetyPin) {
+              this.pullSafetyPin();
+              return;
+            }
+          }
+
+          if (this.passStep >= 2) {
+            this.isSqueezing = true;
+          }
+        }
+
+        onPointerUp() {
+          this.isSqueezing = false;
+          this.sfx.stopSpray();
+          if (this.leverMesh) this.leverMesh.rotation.x = -0.15;
+        }
+
+        onPointerMove(event) {
+          if (!this.isPlaying || !this.isSqueezing) return;
+
+          const currentX = event.clientX;
+          if (this.lastSweepX !== null) {
+            const deltaX = currentX - this.lastSweepX;
+            const dir = Math.sign(deltaX);
+
+            if (dir !== 0 && dir !== this.sweepDirection) {
+              this.sweepDirection = dir;
+              this.sweepDistanceAccumulator += Math.abs(deltaX);
+            } else {
+              this.sweepDistanceAccumulator += Math.abs(deltaX) * 0.5;
+            }
+          }
+          this.lastSweepX = currentX;
+        }
+
+        onSelectStart(event) {
+          this.sfx.ensureContext();
+          if (!this.isPlaying || this.passStep === 5) return;
+
+          const controller = event.source?.controller;
+          if (controller) {
+            this.tempMatrix.identity().extractRotation(controller.matrixWorld);
+            this.rayOrigin.setFromMatrixPosition(controller.matrixWorld);
+            this.rayDirection.set(0, 0, -1).applyMatrix4(this.tempMatrix).normalize();
+
+            this.raycaster.set(this.rayOrigin, this.rayDirection);
+            const hits = this.raycaster.intersectObjects(this.extinguisherGroup.children, true);
+            for (const hit of hits) {
+              if (hit.object?.userData?.isSafetyPin || hit.object?.parent?.userData?.isSafetyPin) {
+                this.pullSafetyPin();
+                return;
+              }
+            }
+          }
+
+          if (this.passStep >= 2) {
+            this.isSqueezing = true;
+          }
+        }
+
+        onSelectEnd() {
+          this.isSqueezing = false;
+          this.sfx.stopSpray();
+          if (this.leverMesh) this.leverMesh.rotation.x = -0.15;
+        }
+
+        update() {
+          const dt = xb.getDeltaTime();
+          this.particles.update(dt, xb.core.camera);
+
+          if (!this.isPlaying) return;
+
+          if (this.passStep < 5) {
+            this.elapsedTime += dt;
+            this.timerText.text = `TIME: ${this.elapsedTime.toFixed(1)}s`;
+          }
+
+          const fireIntensity = this.fireHealth / 100.0;
+          if (Math.random() < fireIntensity * 0.9) {
+            this.particles.spawnFlame(this.fireBasePos, fireIntensity);
+          }
+          if (Math.random() < fireIntensity * 0.4) {
+            this.particles.spawnSmoke(this.fireBasePos, fireIntensity);
+          }
+          this.sfx.updateCrackleIntensity(fireIntensity);
+
+          this.nozzleTipPos.set(0.55, 0.95, -0.75);
+
+          let aimTarget = new THREE.Vector3(this.fireBasePos.x, 0.1, this.fireBasePos.z);
+          const cameraPos = xb.core.camera.position;
+
+          const distToBase = cameraPos.distanceTo(this.fireBasePos);
+          this.isAimingBase = (distToBase < 4.0);
+
+          if (this.isAimingBase && this.passStep >= 2) {
+            this.targetIndicatorMat.color.setHex(0x22c55e);
+            if (this.passStep === 2) {
+              this.passStep = 3;
+              this.stepInstructionText.text = 'STEP 3: SQUEEZE THE LEVER\nHold down trigger / mouse button to discharge agent.';
+              this.stepInstructionText.style.color = '#38bdf8';
+            }
+          } else {
+            this.targetIndicatorMat.color.setHex(0xef4444);
+          }
+
+          if (this.isSqueezing && this.pinRemoved && this.tankPressure > 0) {
+            if (this.leverMesh) this.leverMesh.rotation.x = 0.05;
+
+            this.tankPressure = Math.max(0, this.tankPressure - dt * (100 / 14));
+            this.pressureText.text = `CHARGE: ${Math.round(this.tankPressure)}%`;
+
+            if (this.tankPressure <= 20) {
+              this.pressureText.style.color = '#ef4444';
+            }
+
+            this.sfx.startSpray();
+            this.particles.emitSprayStream(this.nozzleTipPos, aimTarget);
+
+            if (this.passStep === 3) {
+              this.passStep = 4;
+              this.stepInstructionText.text = 'STEP 4: SWEEP SIDE TO SIDE\nActively sweep spray back and forth across the base of the fire!';
+              this.stepInstructionText.style.color = '#a855f7';
+            }
+
+            if (this.passStep === 4) {
+              if (this.isAimingBase && this.sweepDistanceAccumulator > 20) {
+                const suppressionRate = 22.0;
+                this.fireHealth = Math.max(0, this.fireHealth - dt * suppressionRate);
+                this.fireHealthText.text = `FIRE HEALTH: ${Math.round(this.fireHealth)}%`;
+
+                this.sweepDistanceAccumulator = Math.max(0, this.sweepDistanceAccumulator - 12);
+
+                if (this.fireHealth <= 0) {
+                  this.completeDrillSuccess();
+                }
+              } else if (!this.isAimingBase) {
+                if (Math.random() < 0.1) this.sfx.playWarningBuzzer();
+              }
+            }
+          } else if (this.tankPressure <= 0 && this.fireHealth > 0) {
+            this.statusBanner.text = '⚠️ TANK EXHAUSTED! Extinguisher empty before fire was put out. Tap Reset.';
+            this.statusBanner.style.color = '#ef4444';
+            this.sfx.stopSpray();
+          }
+        }
+
+        completeDrillSuccess() {
+          this.passStep = 5;
+          this.isPlaying = false;
+          this.sfx.stopCrackle();
+          this.sfx.stopSpray();
+          this.sfx.playSuccessChime();
+
+          this.fireHealthText.text = 'FIRE HEALTH: 0% EXTINGUISHED!';
+          this.fireHealthText.style.color = '#22c55e';
+
+          this.stepInstructionText.text = `🏆 P.A.S.S. DRILL COMPLETED!\nPassed in ${this.elapsedTime.toFixed(1)}s following SCDF / Civil Defense Protocol.`;
+          this.stepInstructionText.style.color = '#4ade80';
+
+          this.statusBanner.text = 'EXCELLENT WORK! Fire successfully extinguished.';
+          this.statusBanner.style.color = '#38bdf8';
+          this.startBtn.label = 'Drill Passed';
+          this.startBtn.icon = 'check_circle';
+        }
+
+        dispose() {
+          window.removeEventListener('pointerdown', this.boundPointerDown);
+          window.removeEventListener('pointerup', this.boundPointerUp);
+          window.removeEventListener('pointermove', this.boundPointerMove);
+          this.sfx.stopCrackle();
+          this.sfx.stopSpray();
+        }
+      }
+
+      // --- 4. XR BLOCKS BOOTSTRAP INITIALIZATION ---
+      const options = new xb.Options();
+      options.setAppTitle('P.A.S.S. Fire Extinguisher Drill');
+      options.controllers.visualizeRays = true;
+      options.reticles.enabled = true;
+      options.interaction.raycastMode = 'select';
+
+      document.addEventListener('DOMContentLoaded', async () => {
+        xb.add(new PASSFireDrillScript());
+        await xb.init(options);
+      });
+    </script>
+  </body>
+</html>
