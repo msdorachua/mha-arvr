@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebXR Fire Extinguisher Training Simulation</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, sans-serif;
+      user-select: none;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="relative">
+
+  <!-- Desktop HUD Overlay -->
+  <div id="ui-overlay" class="absolute top-4 left-4 z-10 w-96 max-w-[calc(100vw-2rem)] bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl p-5 shadow-2xl transition-all">
+    <div class="flex items-center justify-between mb-3 border-b border-slate-700/60 pb-3">
+      <h1 class="text-xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+        P.A.S.S. Training Simulator
+      </h1>
+      <span id="timer-display" class="font-mono text-xl font-bold text-emerald-400 bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">
+        04:00
+      </span>
+    </div>
+
+    <!-- Step Indicator -->
+    <div class="mb-4">
+      <div class="text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Current Protocol Step</div>
+      <div id="step-banner" class="bg-indigo-950/80 border border-indigo-500/50 text-indigo-200 px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-between shadow-inner">
+        <span id="step-title">1. PULL Safety Pin</span>
+        <span id="step-status" class="text-xs bg-indigo-800/80 px-2 py-0.5 rounded text-indigo-100 uppercase">Pending</span>
+      </div>
+      <p id="step-desc" class="text-xs text-slate-300 mt-2 leading-relaxed">
+        Hold <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600 font-mono text-[10px]">SHIFT</kbd> + <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600 font-mono text-[10px]">Click</kbd> on the yellow ring pin on the extinguisher handle to unlock.
+      </p>
+    </div>
+
+    <!-- Telemetry Gauges -->
+    <div class="space-y-3 mb-5">
+      <!-- Pressure Level -->
+      <div>
+        <div class="flex justify-between text-xs font-semibold mb-1">
+          <span class="text-slate-300">Tank Pressure (Capacity)</span>
+          <span id="pressure-val" class="text-cyan-400 font-mono">100%</span>
+        </div>
+        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-700">
+          <div id="pressure-bar" class="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full transition-all duration-100" style="width: 100%"></div>
+        </div>
+      </div>
+
+      <!-- Fire Health -->
+      <div>
+        <div class="flex justify-between text-xs font-semibold mb-1">
+          <span class="text-slate-300">Hazard Suppression</span>
+          <span id="fire-val" class="text-amber-400 font-mono">100%</span>
+        </div>
+        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-700">
+          <div id="fire-bar" class="bg-gradient-to-r from-red-500 via-orange-500 to-amber-400 h-full rounded-full transition-all duration-100" style="width: 100%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drill Control Buttons -->
+    <div class="grid grid-cols-3 gap-2">
+      <button id="btn-start" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 px-3 rounded-lg text-xs transition shadow hover:shadow-emerald-900/50 active:scale-95">
+        Start Drill
+      </button>
+      <button id="btn-reset" class="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-3 rounded-lg text-xs transition shadow active:scale-95">
+        Reset
+      </button>
+      <button id="btn-stop" class="bg-rose-600 hover:bg-rose-500 text-white font-medium py-2 px-3 rounded-lg text-xs transition shadow hover:shadow-rose-900/50 active:scale-95">
+        Stop
+      </button>
+    </div>
+
+    <!-- Quick Controls Instructions -->
+    <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 grid grid-cols-2 gap-x-2 gap-y-1">
+      <div><span class="text-slate-200">W / S:</span> Move Extinguisher</div>
+      <div><span class="text-slate-200">↑ / ↓:</span> Nozzle Pitch</div>
+      <div><span class="text-slate-200">Hold Drag:</span> Aim Nozzle 360°</div>
+      <div><span class="text-slate-200">Hold 'T' / DblClick:</span> Discharge</div>
+    </div>
+  </div>
+
+  <!-- Status Notification Popup -->
+  <div id="status-toast" class="hidden absolute top-8 left-1/2 -translate-x-1/2 z-20 bg-slate-900/95 border border-amber-500/80 text-amber-200 px-6 py-3 rounded-xl shadow-2xl font-semibold text-sm flex items-center gap-3 backdrop-blur-md">
+    <span id="toast-message">Simulation Ready</span>
+  </div>
+
+  <!-- WebXR VR Entry Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <script>
+    // --- AUDIO SYNTHESIS ENGINE (Web Audio API) ---
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.hissGain = null;
+        this.hissSource = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playClink() {
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1800, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+      }
+
+      startHiss() {
+        this.init();
+        if (this.hissSource) return;
+        const bufferSize = this.ctx.sampleRate * 1.0;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        this.hissSource = this.ctx.createBufferSource();
+        this.hissSource.buffer = buffer;
+        this.hissSource.loop = true;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 1200;
+        filter.Q.value = 1.5;
+
+        this.hissGain = this.ctx.createGain();
+        this.hissGain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+
+        this.hissSource.connect(filter);
+        filter.connect(this.hissGain);
+        this.hissGain.connect(this.ctx.destination);
+        this.hissSource.start();
+      }
+
+      stopHiss() {
+        if (this.hissSource) {
+          try {
+            this.hissSource.stop();
+            this.hissSource.disconnect();
+          } catch(e) {}
+          this.hissSource = null;
+        }
+      }
+
+      playAlarm() {
+        this.init();
+        const now = this.ctx.currentTime;
+        for(let i = 0; i < 3; i++) {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(800, now + i * 0.3);
+          osc.frequency.setValueAtTime(400, now + i * 0.3 + 0.15);
+          gain.gain.setValueAtTime(0.4, now + i * 0.3);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.3 + 0.28);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.3);
+          osc.stop(now + i * 0.3 + 0.28);
+        }
+      }
+
+      playVictory() {
+        this.init();
+        const now = this.ctx.currentTime;
+        // Steam Sizzle
+        const bufferSize = this.ctx.sampleRate * 0.8;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+        src.connect(gain);
+        gain.connect(this.ctx.destination);
+        src.start(now);
+
+        // Major Triad Chime
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const noteGain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + 0.2 + idx * 0.12);
+          noteGain.gain.setValueAtTime(0.3, now + 0.2 + idx * 0.12);
+          noteGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2 + idx * 0.12 + 0.8);
+          osc.connect(noteGain);
+          noteGain.connect(this.ctx.destination);
+          osc.start(now + 0.2 + idx * 0.12);
+          osc.stop(now + 0.2 + idx * 0.12 + 0.8);
+        });
+      }
+    }
+
+    const audio = new SoundEngine();
+
+    // Simulation Flags and Variables
+    const state = {
+      active: false,
+      step: 1, // 1: PULL, 2: AIM, 3: SQUEEZE, 4: SWEEP
+      timeRemaining: 240,
+      pressure: 100, // %
+      fireHealth: 100, // %
+      pinPulled: false,
+      isSpraying: false,
+      isAimingAtBase: false,
+      lastSprayedTime: 0,
+      sweepAngleAccumulator: 0,
+      lastNozzleYaw: 0,
+      gameOver: false
+    };
+
+    // Global Scene Handles
+    let scene, camera, renderer, clock;
+    let extinguisherGroup, nozzlePivot, nozzleTip, pinMesh, pressureNeedle;
+    let fireGroup, flameMeshes = [], fireParticles = [], foamParticles = [];
+    let raycaster, aimRayLine, reticleMesh, aimingLight;
+    let vr3DCanvas, vr3DContext, vr3DTexture, vr3DMesh;
+
+    // Interactive Raycast Pointer Objects
+    const raycastables = [];
+
+    // Keyboard & Mouse Control States
+    const keys = {};
+    let isMouseDown = false;
+    let previousMousePosition = { x: 0, y: 0 };
+
+    function init() {
+      const container = document.getElementById('canvas-container');
+
+      // 1. Scene & Camera Setup
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0f1d);
+      scene.fog = new THREE.FogExp2(0x0a0f1d, 0.08);
+
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+      // MANDATE 1: Position camera at (0, 1.4, 0.8) looking towards (0, 0.6, -1.5)
+      camera.position.set(0, 1.4, 0.8);
+      camera.lookAt(0, 0.6, -1.5);
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.xr.enabled = true;
+      container.appendChild(renderer.domElement);
+
+      clock = new THREE.Clock();
+      raycaster = new THREE.Raycaster();
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(3, 8, 5);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      scene.add(dirLight);
+
+      // Dynamic Fire Light
+      aimingLight = new THREE.PointLight(0xff6600, 2.5, 6);
+      aimingLight.position.set(0, 0.4, -1.8);
+      scene.add(aimingLight);
+
+      // Environment & Apparatus Construction
+      buildEnvironment();
+      buildTrashCanWithFire();
+      buildExtinguisher();
+      buildAimingFeedback();
+      buildVR3DPanel();
+
+      // Event Listeners
+      window.addEventListener('resize', onWindowResize);
+      setupDesktopInputs();
+      setupUIEvents();
+
+      // WebXR Button Setup
+      setupWebXR();
+
+      // Start Render Loop
+      renderer.setAnimationLoop(render);
+    }
+
+    function buildEnvironment() {
+      // Floor Mesh
+      const floorGeo = new THREE.PlaneGeometry(20, 20);
+      const floorMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.8,
+        metalness: 0.2
+      });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      // Raycast flag mandate
+      floor.xb = { pointerEvents: 'none' };
+      scene.add(floor);
+
+      // Grid helper for depth
+      const grid = new THREE.GridHelper(20, 20, 0x3b82f6, 0x334155);
+      grid.position.y = 0.001;
+      grid.xb = { pointerEvents: 'none' };
+      scene.add(grid);
+
+      // Back Wall
+      const wallGeo = new THREE.PlaneGeometry(20, 10);
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
+      const wall = new THREE.Mesh(wallGeo, wallMat);
+      wall.position.set(0, 5, -5);
+      wall.xb = { pointerEvents: 'none' };
+      scene.add(wall);
+    }
+
+    function buildTrashCanWithFire() {
+      // MANDATE 2: Trash can with fire at (0, 0, -1.8)
+      const fireAnchor = new THREE.Group();
+      fireAnchor.position.set(0, 0, -1.8);
+
+      // Metal Trash Can
+      const canGeo = new THREE.CylinderGeometry(0.35, 0.28, 0.65, 24, 1, true);
+      const canMat = new THREE.MeshStandardMaterial({
+        color: 0x64748b,
+        metalness: 0.8,
+        roughness: 0.3,
+        side: THREE.DoubleSide
+      });
+      const trashCan = new THREE.Mesh(canGeo, canMat);
+      trashCan.position.y = 0.325;
+      trashCan.castShadow = true;
+      trashCan.receiveShadow = true;
+      trashCan.xb = { pointerEvents: 'none' };
+      fireAnchor.add(trashCan);
+
+      // Trash Can Bottom
+      const bottomGeo = new THREE.CircleGeometry(0.28, 24);
+      const bottom = new THREE.Mesh(bottomGeo, canMat);
+      bottom.rotation.x = -Math.PI / 2;
+      bottom.position.y = 0.01;
+      trashCan.add(bottom);
+
+      // Target Base Hitbox (for AIM step validation)
+      const baseHitboxGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
+      const baseHitboxMat = new THREE.MeshBasicMaterial({ visible: false });
+      const fireBaseTarget = new THREE.Mesh(baseHitboxGeo, baseHitboxMat);
+      fireBaseTarget.position.y = 0.15;
+      fireBaseTarget.name = "FireBaseTarget";
+      fireAnchor.add(fireBaseTarget);
+
+      // Fire Meshes & Particles System
+      fireGroup = new THREE.Group();
+      fireGroup.position.y = 0.55; // Rising above top of can
+      fireAnchor.add(fireGroup);
+
+      // Core Animated Flame Meshes (Cone & Cylinder)
+      const flameMat = new THREE.MeshBasicMaterial({
+        color: 0xff4500,
+        transparent: true,
+        opacity: 0.85,
+        wireframe: false
+      });
+      
+      const flameCoreGeo = new THREE.ConeGeometry(0.3, 0.8, 12);
+      const flameCore = new THREE.Mesh(flameCoreGeo, flameMat);
+      flameCore.position.y = 0.4;
+      fireGroup.add(flameCore);
+      flameMeshes.push(flameCore);
+
+      const flameInnerGeo = new THREE.ConeGeometry(0.2, 0.6, 10);
+      const flameInnerMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.9 });
+      const flameInner = new THREE.Mesh(flameInnerGeo, flameInnerMat);
+      flameInner.position.y = 0.3;
+      fireGroup.add(flameInner);
+      flameMeshes.push(flameInner);
+
+      // Flame Particles Pool
+      const particleGeo = new THREE.DodecahedronGeometry(0.08, 1);
+      for(let i = 0; i < 25; i++) {
+        const pMat = new THREE.MeshBasicMaterial({
+          color: (i % 2 === 0) ? 0xff5500 : 0xffaa00,
+          transparent: true,
+          opacity: 0.8
+        });
+        const p = new THREE.Mesh(particleGeo, pMat);
+        p.xb = { pointerEvents: 'none' };
+        resetFireParticle(p);
+        fireGroup.add(p);
+        fireParticles.push(p);
+      }
+
+      scene.add(fireAnchor);
+    }
+
+    function resetFireParticle(p) {
+      p.position.set(
+        (Math.random() - 0.5) * 0.4,
+        Math.random() * 0.2,
+        (Math.random() - 0.5) * 0.4
+      );
+      p.scale.setScalar(0.6 + Math.random() * 0.8);
+      p.userData = {
+        vy: 0.015 + Math.random() * 0.02,
+        vx: (Math.random() - 0.5) * 0.008,
+        vz: (Math.random() - 0.5) * 0.008,
+        life: 1.0
+      };
+    }
+
+    function buildExtinguisher() {
+      // MANDATE 2: Waist level (0, 0.75, -0.6)
+      extinguisherGroup = new THREE.Group();
+      extinguisherGroup.position.set(0, 0.75, -0.6);
+
+      // Red Tank Body
+      const tankGeo = new THREE.CylinderGeometry(0.11, 0.11, 0.48, 24);
+      const tankMat = new THREE.MeshStandardMaterial({
+        color: 0xd97706, // High contrast amber-red
+        metalness: 0.4,
+        roughness: 0.3
+      });
+      const tank = new THREE.Mesh(tankGeo, tankMat);
+      tank.castShadow = true;
+      tank.xb = { pointerEvents: 'none' };
+      extinguisherGroup.add(tank);
+
+      // Tank Dome Cap
+      const domeGeo = new THREE.SphereGeometry(0.11, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+      const dome = new THREE.Mesh(domeGeo, tankMat);
+      dome.position.y = 0.24;
+      extinguisherGroup.add(dome);
+
+      // Metal Valve Neck
+      const valveGeo = new THREE.CylinderGeometry(0.035, 0.045, 0.08, 16);
+      const valveMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.2 });
+      const valve = new THREE.Mesh(valveGeo, valveMat);
+      valve.position.y = 0.28;
+      extinguisherGroup.add(valve);
+
+      // Handle Levers
+      const handleGeo = new THREE.BoxGeometry(0.02, 0.012, 0.16);
+      const handleMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 });
+      
+      const bottomHandle = new THREE.Mesh(handleGeo, handleMat);
+      bottomHandle.position.set(0, 0.32, -0.05);
+      bottomHandle.rotation.x = -0.15;
+      extinguisherGroup.add(bottomHandle);
+
+      const topLever = new THREE.Mesh(handleGeo, handleMat);
+      topLever.position.set(0, 0.35, -0.05);
+      topLever.rotation.x = 0.15;
+      extinguisherGroup.add(topLever);
+
+      // Prominent Yellow Safety Pin Ring (Interactive Object)
+      const pinGroup = new THREE.Group();
+      pinGroup.position.set(0.04, 0.335, -0.02);
+
+      const ringGeo = new THREE.TorusGeometry(0.032, 0.007, 12, 24);
+      const ringMat = new THREE.MeshStandardMaterial({
+        color: 0xfacc15, // Bright yellow
+        metalness: 0.5,
+        roughness: 0.2,
+        emissive: 0x854d0e,
+        emissiveIntensity: 0.2
+      });
+      pinMesh = new THREE.Mesh(ringGeo, ringMat);
+      pinMesh.rotation.y = Math.PI / 2;
+      // MANDATE 4: Raycast auto flags for interactive pin
+      pinMesh.xb = { pointerEvents: 'auto', reticleMode: 'auto' };
+      pinMesh.name = "SafetyPin";
+      pinGroup.add(pinMesh);
+
+      const pinStemGeo = new THREE.CylinderGeometry(0.004, 0.004, 0.06);
+      const pinStem = new THREE.Mesh(pinStemGeo, valveMat);
+      pinStem.rotation.z = Math.PI / 2;
+      pinStem.position.x = -0.02;
+      pinGroup.add(pinStem);
+
+      extinguisherGroup.add(pinGroup);
+      raycastables.push(pinMesh);
+
+      // Pressure Gauge
+      const gaugeGroup = new THREE.Group();
+      gaugeGroup.position.set(-0.04, 0.32, 0.02);
+      gaugeGroup.rotation.y = -Math.PI / 2;
+
+      const gaugeBodyGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.012, 16);
+      const gaugeBody = new THREE.Mesh(gaugeBodyGeo, valveMat);
+      gaugeBody.rotation.x = Math.PI / 2;
+      gaugeGroup.add(gaugeBody);
+
+      // Gauge Face Dial
+      const dialGeo = new THREE.CircleGeometry(0.02, 16);
+      const dialMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+      const dial = new THREE.Mesh(dialGeo, dialMat);
+      dial.position.z = 0.007;
+      gaugeGroup.add(dial);
+
+      // Pressure Needle
+      const needleGeo = new THREE.PlaneGeometry(0.003, 0.016);
+      const needleMat = new THREE.MeshBasicMaterial({ color: 0xd97706 });
+      pressureNeedle = new THREE.Mesh(needleGeo, needleMat);
+      pressureNeedle.position.set(0, 0.005, 0.008);
+      pressureNeedle.geometry.translate(0, 0.006, 0);
+      pressureNeedle.rotation.z = -Math.PI / 4; // Start in green zone
+      gaugeGroup.add(pressureNeedle);
+
+      extinguisherGroup.add(gaugeGroup);
+
+      // Flexible Hose & Aiming Nozzle Pivot
+      nozzlePivot = new THREE.Group();
+      nozzlePivot.position.set(0, 0.31, 0.06); // Front of valve
+      extinguisherGroup.add(nozzlePivot);
+
+      const nozzleGeo = new THREE.CylinderGeometry(0.015, 0.025, 0.12, 16);
+      const nozzleMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 });
+      const nozzleMesh = new THREE.Mesh(nozzleGeo, nozzleMat);
+      nozzleMesh.rotation.x = Math.PI / 2;
+      nozzleMesh.position.z = 0.06;
+      nozzlePivot.add(nozzleMesh);
+
+      // Nozzle Tip Point (Emitter Origin)
+      nozzleTip = new THREE.Group();
+      nozzleTip.position.set(0, 0, 0.12);
+      nozzlePivot.add(nozzleTip);
+
+      scene.add(extinguisherGroup);
+
+      // Foam Particle Pool
+      const foamGeo = new THREE.SphereGeometry(0.03, 8, 8);
+      const foamMat = new THREE.MeshBasicMaterial({ color: 0xf1f5f9, transparent: true, opacity: 0.85 });
+      for(let i = 0; i < 60; i++) {
+        const foam = new THREE.Mesh(foamGeo, foamMat);
+        foam.visible = false;
+        foam.xb = { pointerEvents: 'none' };
+        scene.add(foam);
+        foamParticles.push(foam);
+      }
+    }
+
+    function buildAimingFeedback() {
+      // Laser / Thick Ray Beam
+      const rayGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 0, 4)
+      ]);
+      const rayMat = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 3 });
+      aimRayLine = new THREE.Line(rayGeo, rayMat);
+      nozzleTip.add(aimRayLine);
+
+      // Target Spot Reticle
+      const reticleGeo = new THREE.RingGeometry(0.06, 0.09, 24);
+      const reticleMat = new THREE.MeshBasicMaterial({ color: 0xef4444, side: THREE.DoubleSide });
+      reticleMesh = new THREE.Mesh(reticleGeo, reticleMat);
+      reticleMesh.rotation.x = -Math.PI / 2;
+      reticleMesh.visible = false;
+      scene.add(reticleMesh);
+    }
+
+    function buildVR3DPanel() {
+      vr3DCanvas = document.createElement('canvas');
+      vr3DCanvas.width = 512;
+      vr3DCanvas.height = 384;
+      vr3DContext = vr3DCanvas.getContext('2d');
+
+      vr3DTexture = new THREE.CanvasTexture(vr3DCanvas);
+      const panelGeo = new THREE.PlaneGeometry(1.2, 0.9);
+      const panelMat = new THREE.MeshBasicMaterial({ map: vr3DTexture, transparent: true, side: THREE.DoubleSide });
+      vr3DMesh = new THREE.Mesh(panelGeo, panelMat);
+      vr3DMesh.position.set(-1.1, 1.4, -1.2);
+      vr3DMesh.rotation.y = Math.PI / 6;
+      vr3DMesh.xb = { pointerEvents: 'none' };
+      scene.add(vr3DMesh);
+
+      updateVRPanelCanvas();
+    }
+
+    function updateVRPanelCanvas() {
+      if (!vr3DContext) return;
+      const ctx = vr3DContext;
+      ctx.clearRect(0, 0, 512, 384);
+
+      // Card Background
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.beginPath();
+      ctx.roundRect(0, 0, 512, 384, 24);
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#334155';
+      ctx.stroke();
+
+      // Title & Timer
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = 'bold 26px sans-serif';
+      ctx.fillText('P.A.S.S. Training Panel', 24, 48);
+
+      const mins = Math.floor(state.timeRemaining / 60);
+      const secs = state.timeRemaining % 60;
+      const timeStr = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+      ctx.fillStyle = '#10b981';
+      ctx.font = 'bold 28px monospace';
+      ctx.fillText(timeStr, 380, 48);
+
+      // Step
+      ctx.fillStyle = '#1e1b4b';
+      ctx.fillRect(24, 75, 464, 55);
+      ctx.fillStyle = '#818cf8';
+      ctx.font = 'bold 20px sans-serif';
+      
+      const stepTexts = [
+        'Step 1: PULL Safety Pin',
+        'Step 2: AIM Nozzle at Fire Base',
+        'Step 3: SQUEEZE Spray Lever',
+        'Step 4: SWEEP Side to Side'
+      ];
+      ctx.fillText(stepTexts[state.step - 1] || 'Completed', 40, 110);
+
+      // Gauges
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '16px sans-serif';
+      ctx.fillText(`Tank Pressure: ${Math.round(state.pressure)}%`, 24, 170);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(24, 180, 464, 20);
+      ctx.fillStyle = '#06b6d4';
+      ctx.fillRect(24, 180, 464 * (state.pressure / 100), 20);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(`Fire Suppression: ${Math.round(100 - state.fireHealth)}%`, 24, 240);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(24, 250, 464, 20);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(24, 250, 464 * (state.fireHealth / 100), 20);
+
+      // Status Footer
+      ctx.fillStyle = state.gameOver ? '#f43f5e' : '#38bdf8';
+      ctx.font = 'italic 18px sans-serif';
+      ctx.fillText(state.gameOver ? 'Drill Terminated' : 'Drill In Progress...', 24, 330);
+
+      vr3DTexture.needsUpdate = true;
+    }
+
+    function setupDesktopInputs() {
+      // Keyboard listeners
+      window.addEventListener('keydown', (e) => {
+        keys[e.key.toLowerCase()] = true;
+        if (e.key === 'Shift') keys['shift'] = true;
+      });
+
+      window.addEventListener('keyup', (e) => {
+        keys[e.key.toLowerCase()] = false;
+        if (e.key === 'Shift') keys['shift'] = false;
+      });
+
+      // Mouse drag for 360 degree nozzle rotate
+      window.addEventListener('mousedown', (e) => {
+        if (e.button === 0) {
+          isMouseDown = true;
+          previousMousePosition = { x: e.clientX, y: e.clientY };
+
+          // Pin Pull Raycast Check
+          checkPinClick(e);
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        isMouseDown = false;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isMouseDown || !nozzlePivot) return;
+        const deltaX = e.clientX - previousMousePosition.x;
+        const deltaY = e.clientY - previousMousePosition.y;
+
+        nozzlePivot.rotation.y -= deltaX * 0.008;
+        nozzlePivot.rotation.x -= deltaY * 0.008;
+
+        // Clamp Pitch
+        nozzlePivot.rotation.x = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, nozzlePivot.rotation.x));
+
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+      });
+
+      // Double Click or 'T' key for Spraying
+      window.addEventListener('dblclick', () => {
+        if (state.pinPulled && state.active && !state.gameOver) {
+          triggerSprayBurst();
+        }
+      });
+    }
+
+    function checkPinClick(e) {
+      if (state.pinPulled) return;
+      const mouse = new THREE.Vector2(
+        (e.clientX / window.innerWidth) * 2 - 1,
+        -(e.clientY / window.innerHeight) * 2 + 1
+      );
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(raycastables, true);
+
+      if (intersects.length > 0 && keys['shift']) {
+        pullSafetyPin();
+      }
+    }
+
+    function pullSafetyPin() {
+      if (state.pinPulled) return;
+      state.pinPulled = true;
+      audio.playClink();
+
+      // Pull animation out
+      if (pinMesh) {
+        pinMesh.parent.position.x += 0.15;
+        pinMesh.parent.visible = false;
+      }
+
+      if (state.step === 1) {
+        advanceStep(2);
+      }
+      showToast("Safety Pin Pulled! Spray Unlocked.");
+    }
+
+    function triggerSprayBurst() {
+      // Short burst on double click if not holding T
+      state.isSpraying = true;
+      setTimeout(() => {
+        if (!keys['t']) state.isSpraying = false;
+      }, 600);
+    }
+
+    function setupUIEvents() {
+      document.getElementById('btn-start').addEventListener('click', startDrill);
+      document.getElementById('btn-reset').addEventListener('click', resetDrill);
+      document.getElementById('btn-stop').addEventListener('click', stopDrill);
+    }
+
+    function setupWebXR() {
+      // WebXR Button
+      document.body.appendChild(WEBXR.createButton(renderer));
+
+      // Controller listeners
+      const controller1 = renderer.xr.getController(0);
+      controller1.addEventListener('selectstart', onVRTriggerStart);
+      controller1.addEventListener('selectend', onVRTriggerEnd);
+      scene.add(controller1);
+
+      const controller2 = renderer.xr.getController(1);
+      controller2.addEventListener('selectstart', onVRTriggerStart);
+      controller2.addEventListener('selectend', onVRTriggerEnd);
+      scene.add(controller2);
+    }
+
+    function onVRTriggerStart() {
+      if (!state.pinPulled) {
+        pullSafetyPin();
+      } else {
+        state.isSpraying = true;
+      }
+    }
+
+    function onVRTriggerEnd() {
+      state.isSpraying = false;
+    }
+
+    // Standard Fallback WebXR VR Button Builder
+    const WEBXR = {
+      createButton: function(renderer) {
+        const button = document.createElement('button');
+        button.className = 'absolute bottom-6 right-6 z-30 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-5 rounded-xl shadow-xl transition border border-indigo-400/50';
+        button.textContent = 'ENTER VR (QUEST 3)';
+        button.style.display = 'none';
+
+        if ('xr' in navigator) {
+          navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+            if (supported) {
+              button.style.display = 'block';
+              button.onclick = () => {
+                if (!renderer.xr.isPresenting) {
+                  navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor', 'bounded-floor'] }).then((session) => {
+                    renderer.xr.setSession(session);
+                    button.textContent = 'EXIT VR';
+                  });
+                } else {
+                  renderer.xr.getSession().end();
+                  button.textContent = 'ENTER VR (QUEST 3)';
+                }
+              };
+            }
+          });
+        }
+        return button;
+      }
+    };
+
+    function startDrill() {
+      if (state.active && !state.gameOver) return;
+      state.active = true;
+      state.gameOver = false;
+      showToast("Training Drill Started! Complete P.A.S.S. Steps.");
+
+      // Timer Interval
+      if (window.drillTimer) clearInterval(window.drillTimer);
+      window.drillTimer = setInterval(() => {
+        if (state.active && !state.gameOver) {
+          state.timeRemaining--;
+          updateHUD();
+          if (state.timeRemaining <= 0) {
+            failDrill("Time Expired! Alarm sounded.");
+          }
+        }
+      }, 1000);
+    }
+
+    function resetDrill() {
+      state.active = false;
+      state.gameOver = false;
+      state.step = 1;
+      state.timeRemaining = 240;
+      state.pressure = 100;
+      state.fireHealth = 100;
+      state.pinPulled = false;
+      state.isSpraying = false;
+      state.sweepAngleAccumulator = 0;
+
+      if (window.drillTimer) clearInterval(window.drillTimer);
+
+      if (pinMesh && pinMesh.parent) {
+        pinMesh.parent.position.x = 0.04;
+        pinMesh.parent.visible = true;
+      }
+
+      extinguisherGroup.position.set(0, 0.75, -0.6);
+      nozzlePivot.rotation.set(0, 0, 0);
+
+      updateHUD();
+      showToast("Drill Reset to Initial State.");
+    }
+
+    function stopDrill() {
+      state.active = false;
+      if (window.drillTimer) clearInterval(window.drillTimer);
+      audio.stopHiss();
+      showToast("Drill Stopped.");
+    }
+
+    function advanceStep(nextStep) {
+      state.step = nextStep;
+      updateHUD();
+    }
+
+    function failDrill(reason) {
+      state.gameOver = true;
+      state.active = false;
+      audio.stopHiss();
+      audio.playAlarm();
+      showToast(`FAILED: ${reason}`);
+      updateHUD();
+    }
+
+    function victoryDrill() {
+      state.gameOver = true;
+      state.active = false;
+      state.fireHealth = 0;
+      audio.stopHiss();
+      audio.playVictory();
+      showToast("VICTORY! Fire completely extinguished!");
+      updateHUD();
+    }
+
+    function updateHUD() {
+      // Desktop Overlay updates
+      const mins = Math.floor(state.timeRemaining / 60);
+      const secs = state.timeRemaining % 60;
+      document.getElementById('timer-display').textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+
+      document.getElementById('pressure-val').textContent = `${Math.round(state.pressure)}%`;
+      document.getElementById('pressure-bar').style.width = `${state.pressure}%`;
+
+      document.getElementById('fire-val').textContent = `${Math.round(100 - state.fireHealth)}%`;
+      document.getElementById('fire-bar').style.width = `${state.fireHealth}%`;
+
+      // Gauge Needle angle: 100% -> -PI/4, 0% -> PI/4
+      if (pressureNeedle) {
+        pressureNeedle.rotation.z = -Math.PI / 4 + ((100 - state.pressure) / 100) * (Math.PI / 2);
+      }
+
+      // Step Banner Labels
+      const titles = [
+        "1. PULL Safety Pin",
+        "2. AIM Nozzle at Base",
+        "3. SQUEEZE Handle",
+        "4. SWEEP Side-to-Side"
+      ];
+      const statusText = [
+        "Hold SHIFT + Click Pin",
+        "Point Laser at Base",
+        "Hold 'T' or DblClick",
+        "Sweep Nozzle Horizontally"
+      ];
+
+      document.getElementById('step-title').textContent = titles[state.step - 1] || "Drill Complete";
+      document.getElementById('step-status').textContent = state.pinPulled ? "Unlocked" : "Locked";
+      document.getElementById('step-desc').textContent = statusText[state.step - 1] || "All steps completed.";
+
+      // Update 3D VR Panel
+      updateVRPanelCanvas();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('status-toast');
+      document.getElementById('toast-message').textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3500);
+    }
+
+    function render() {
+      const delta = clock.getDelta();
+      const time = clock.getElapsedTime();
+
+      // Keyboard Controls Handling
+      handleKeyboardInputs(delta);
+
+      // VR Controller Thumbstick Inputs
+      handleVRThumbstickInputs();
+
+      // Laser Raycast & Aiming Detection
+      updateAimingRaycast();
+
+      // Spraying Logic & Foam Stream Update
+      updateSprayingLogic(delta);
+
+      // Fire Particles Animation & Regrowth
+      updateFireState(delta, time);
+
+      // Render Scene
+      renderer.render(scene, camera);
+    }
+
+    function handleKeyboardInputs(dt) {
+      if (!extinguisherGroup || !nozzlePivot) return;
+
+      // Move Extinguisher W/S
+      if (keys['w']) extinguisherGroup.position.z -= 0.8 * dt;
+      if (keys['s']) extinguisherGroup.position.z += 0.8 * dt;
+
+      // Tilt Nozzle Up/Down
+      if (keys['arrowup']) nozzlePivot.rotation.x += 1.2 * dt;
+      if (keys['arrowdown']) nozzlePivot.rotation.x -= 1.2 * dt;
+      nozzlePivot.rotation.x = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, nozzlePivot.rotation.x));
+
+      // Spray trigger key
+      if (keys['t'] && state.pinPulled && state.active && !state.gameOver) {
+        state.isSpraying = true;
+      } else if (!keys['t'] && !renderer.xr.isPresenting && state.isSpraying && !isMouseDown) {
+        state.isSpraying = false;
+      }
+    }
+
+    function handleVRThumbstickInputs() {
+      const session = renderer.xr.getSession();
+      if (!session) return;
+
+      for (const source of session.inputSources) {
+        if (source.gamepad) {
+          const axes = source.gamepad.axes;
+          if (axes.length >= 4) {
+            // Thumbstick X/Y
+            const stickX = axes[2];
+            const stickY = axes[3];
+
+            if (Math.abs(stickX) > 0.1) nozzlePivot.rotation.y -= stickX * 0.03;
+            if (Math.abs(stickY) > 0.1) nozzlePivot.rotation.x -= stickY * 0.03;
+          }
+        }
+      }
+    }
+
+    function updateAimingRaycast() {
+      if (!nozzleTip) return;
+
+      const worldQuat = new THREE.Quaternion();
+      const worldPos = new THREE.Vector3();
+      nozzleTip.getWorldPosition(worldPos);
+      nozzleTip.getWorldQuaternion(worldQuat);
+
+      const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(worldQuat);
+      raycaster.set(worldPos, dir);
+
+      const fireBase = scene.getObjectByName("FireBaseTarget");
+      if (fireBase) {
+        const hits = raycaster.intersectObject(fireBase);
+
+        if (hits.length > 0) {
+          state.isAimingAtBase = true;
+          aimRayLine.material.color.setHex(0x10b981); // Green Indicator
+          reticleMesh.material.color.setHex(0x10b981);
+          reticleMesh.position.copy(hits[0].point);
+          reticleMesh.position.y += 0.01;
+          reticleMesh.visible = true;
+
+          if (state.step === 2) advanceStep(3);
+        } else {
+          state.isAimingAtBase = false;
+          aimRayLine.material.color.setHex(0xef4444); // Red Indicator
+          reticleMesh.material.color.setHex(0xef4444);
+          reticleMesh.visible = false;
+        }
+      }
+    }
+
+    function updateSprayingLogic(dt) {
+      if (state.isSpraying && state.pressure > 0 && state.pinPulled && state.active && !state.gameOver) {
+        audio.startHiss();
+
+        // Deplete Pressure (15s total capacity)
+        state.pressure -= (100 / 15) * dt;
+        if (state.pressure <= 0) {
+          state.pressure = 0;
+          state.isSpraying = false;
+          audio.stopHiss();
+          if (state.fireHealth > 0) {
+            failDrill("Extinguisher Tank Empty before fire was out!");
+          }
+        }
+
+        // Spawn Foam Particles
+        emitFoamParticle();
+
+        // Calculate Sweep Motion
+        const deltaYaw = Math.abs(nozzlePivot.rotation.y - state.lastNozzleYaw);
+        state.sweepAngleAccumulator += deltaYaw;
+        state.lastNozzleYaw = nozzlePivot.rotation.y;
+
+        if (state.step === 3 && state.isAimingAtBase) {
+          advanceStep(4);
+        }
+
+        // Apply Suppression to Fire
+        if (state.isAimingAtBase) {
+          const suppressionRate = 18.0 * dt; // Base decay
+          state.fireHealth -= suppressionRate;
+          state.lastSprayedTime = clock.getElapsedTime();
+
+          if (state.fireHealth <= 0) {
+            victoryDrill();
+          }
+        }
+
+        updateHUD();
+      } else {
+        audio.stopHiss();
+      }
+
+      // Update active foam particles in flight
+      foamParticles.forEach(p => {
+        if (p.visible) {
+          p.position.add(p.userData.velocity);
+          p.scale.multiplyScalar(1.02);
+          p.userData.life -= dt * 2.5;
+          if (p.userData.life <= 0) {
+            p.visible = false;
+          }
+        }
+      });
+    }
+
+    function emitFoamParticle() {
+      const p = foamParticles.find(f => !f.visible);
+      if (!p) return;
+
+      const worldPos = new THREE.Vector3();
+      const worldQuat = new THREE.Quaternion();
+      nozzleTip.getWorldPosition(worldPos);
+      nozzleTip.getWorldQuaternion(worldQuat);
+
+      const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(worldQuat);
+      dir.x += (Math.random() - 0.5) * 0.08;
+      dir.y += (Math.random() - 0.5) * 0.08;
+
+      p.position.copy(worldPos);
+      p.userData = {
+        velocity: dir.multiplyScalar(0.18),
+        life: 1.0
+      };
+      p.scale.setScalar(0.04);
+      p.visible = true;
+    }
+
+    function updateFireState(dt, time) {
+      if (!fireGroup) return;
+
+      // Scale flame size based on fire health
+      const healthFactor = Math.max(0, state.fireHealth / 100);
+      fireGroup.scale.set(healthFactor, healthFactor, healthFactor);
+
+      // Dynamic Flame Flicker
+      flameMeshes.forEach((m, idx) => {
+        m.rotation.y = time * (2 + idx);
+        m.scale.x = 1 + Math.sin(time * 8 + idx) * 0.1;
+        m.scale.z = 1 + Math.cos(time * 8 + idx) * 0.1;
+      });
+
+      // Fire Particles Movement
+      fireParticles.forEach(p => {
+        p.position.y += p.userData.vy;
+        p.position.x += p.userData.vx;
+        p.position.z += p.userData.vz;
+        p.userData.life -= dt * 1.5;
+
+        if (p.userData.life <= 0) {
+          resetFireParticle(p);
+        }
+      });
+
+      // Dynamic Light Intensity
+      if (aimingLight) {
+        aimingLight.intensity = (1.5 + Math.sin(time * 12) * 0.8) * healthFactor;
+      }
+
+      // Fire Regrowth Rule: If not sprayed for > 5 seconds and health > 0
+      if (state.active && !state.gameOver && state.fireHealth > 0 && state.fireHealth < 100) {
+        const timeSinceSprayed = time - state.lastSprayedTime;
+        if (timeSinceSprayed > 5.0) {
+          state.fireHealth = Math.min(100, state.fireHealth + 8.0 * dt);
+          updateHUD();
+        }
+      }
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // Initialize Simulation Application on Window Load
+    window.onload = () => {
+      init();
+    };
+  </script>
+</body>
+</html>
